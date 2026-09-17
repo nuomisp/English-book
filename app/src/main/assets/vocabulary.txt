@@ -1,0 +1,101 @@
+# Original starter lessons. word|ipa|meaning|example|exampleZh|level
+learn|/lɜːn/|v. 学习；学会|I learn ten words every morning.|我每天早上学习十个单词。|基础
+study|/ˈstʌdi/|v. 学习；研究|We study English after dinner.|我们晚饭后学习英语。|基础
+read|/riːd/|v. 阅读|Please read this short story.|请读这篇小故事。|基础
+write|/raɪt/|v. 写；写作|Write your answer in a notebook.|把你的答案写在笔记本里。|基础
+listen|/ˈlɪsən/|v. 听；倾听|Listen to the sentence twice.|把这个句子听两遍。|基础
+speak|/spiːk/|v. 说话；讲某种语言|She speaks English with her friends.|她和朋友们说英语。|基础
+understand|/ˌʌndəˈstænd/|v. 理解；明白|I understand the question now.|我现在理解这个问题了。|基础
+remember|/rɪˈmembə/|v. 记住；记得|I remember your name.|我记得你的名字。|基础
+forget|/fəˈɡet/|v. 忘记|Do not forget your notebook.|别忘记带你的笔记本。|基础
+practice|/ˈpræktɪs/|n. 练习；实践|Daily practice helps me improve.|每天练习帮助我进步。|基础
+question|/ˈkwestʃən/|n. 问题；疑问|May I ask a question?|我可以问一个问题吗？|基础
+answer|/ˈɑːnsə/|n. 回答；答案；v. 回答|Her answer is correct.|她的答案是正确的。|基础
+mistake|/mɪˈsteɪk/|n. 错误|Everyone makes mistakes when learning.|每个人学习时都会犯错。|基础
+easy|/ˈiːzi/|adj. 容易的|This story is easy to read.|这个故事很容易读懂。|基础
+difficult|/ˈdɪfɪkəlt/|adj. 困难的|The last question is difficult.|最后一个问题很难。|基础
+important|/ɪmˈpɔːtənt/|adj. 重要的|Sleep is important for learning.|睡眠对学习很重要。|基础
+begin|/bɪˈɡɪn/|v. 开始|Our class begins at nine.|我们的课九点开始。|基础
+finish|/ˈfɪnɪʃ/|v. 完成；结束|I finish my homework before dinner.|我在晚饭前完成作业。|基础
+need|/niːd/|v. 需要；n. 需要|You need a short break.|你需要短暂休息一下。|基础
+want|/wɒnt/|v. 想要|I want to read English books.|我想读英文书。|基础
+choose|/tʃuːz/|v. 选择|Choose one answer from the list.|从列表中选一个答案。|基础
+change|/tʃeɪndʒ/|v. 改变；n. 变化|Small habits can change your life.|小习惯可以改变你的生活。|基础
+help|/help/|v. 帮助；n. 帮助|Pictures help me remember words.|图片帮助我记住单词。|基础
+ask|/ɑːsk/|v. 问；请求|Ask your teacher for help.|向老师寻求帮助。|基础
+tell|/tel/|v. 告诉；讲述|Tell me about your school.|跟我说说你的学校。|基础
+find|/faɪnd/|v. 找到；发现|I find new words in the story.|我在故事里发现了新单词。|基础
+think|/θɪŋk/|v. 思考；认为|Think before you answer.|回答之前先想一想。|基础
+know|/nəʊ/|v. 知道；认识|Do you know this word?|你认识这个单词吗？|基础
+feel|/fiːl/|v. 感觉；感到|I feel better after a walk.|散步后我感觉好多了。|基础
+try|/traɪ/|v. 尝试；努力|Try again with a shorter sentence.|用一个更短的句子再试试。|基础
+time|/taɪm/|n. 时间；次|Make time for reading each day.|每天抽出时间阅读。|基础
+minute|/ˈmɪnɪt/|n. 分钟|The lesson takes twenty minutes.|这节课需要二十分钟。|基础
+morning|/ˈmɔːnɪŋ/|n. 早晨；上午|The library opens in the morning.|图书馆在上午开门。|基础
+evening|/ˈiːvnɪŋ/|n. 傍晚；晚上|I review my words in the evening.|我在晚上复习单词。|基础
+today|/təˈdeɪ/|adv. 今天|Today I learned five useful words.|今天我学了五个有用的单词。|基础
+tomorrow|/təˈmɒrəʊ/|adv. 明天|We will read the next story tomorrow.|我们明天读下一个故事。|基础
+often|/ˈɒfən/|adv. 经常|He often reads on the bus.|他经常在公交车上阅读。|基础
+sometimes|/ˈsʌmtaɪmz/|adv. 有时|Sometimes I study with a friend.|有时我和一个朋友一起学习。|基础
+always|/ˈɔːlweɪz/|adv. 总是；一直|She always checks her answers.|她总是检查自己的答案。|基础
+together|/təˈɡeðə/|adv. 一起|We solve the problem together.|我们一起解决这个问题。|基础
+friend|/frend/|n. 朋友|My friend sends me a short message.|我的朋友给我发了一条短消息。|基础
+family|/ˈfæməli/|n. 家庭；家人|My family supports my study plan.|我的家人支持我的学习计划。|基础
+school|/skuːl/|n. 学校|There is a small park near our school.|我们学校附近有个小公园。|基础
+library|/ˈlaɪbrəri/|n. 图书馆|The library is quiet after lunch.|午饭后图书馆很安静。|基础
+work|/wɜːk/|n. 工作；v. 工作|I listen to English after work.|我下班后听英语。|基础
+busy|/ˈbɪzi/|adj. 忙碌的|Even on busy days, I read a little.|即使在忙碌的日子里，我也会读一点。|基础
+tired|/ˈtaɪəd/|adj. 疲倦的|When I am tired, I take a break.|我累的时候就休息一下。|基础
+healthy|/ˈhelθi/|adj. 健康的|Walking is a healthy habit.|散步是一个健康的习惯。|基础
+happy|/ˈhæpi/|adj. 快乐的；高兴的|I am happy with my progress.|我对自己的进步感到高兴。|基础
+careful|/ˈkeəfəl/|adj. 仔细的；小心的|Be careful with similar words.|注意那些相似的单词。|基础
+because|/bɪˈkɒz/|conj. 因为|I read slowly because the story is new.|因为这个故事是新的，所以我读得很慢。|基础
+before|/bɪˈfɔː/|prep. 在……之前|Read the question before the story.|先读问题，再读故事。|基础
+after|/ˈɑːftə/|prep. 在……之后|We talk about the story after class.|下课后我们讨论这个故事。|基础
+between|/bɪˈtwiːn/|prep. 在……之间（两者）|Take a break between two lessons.|两节课之间休息一下。|基础
+different|/ˈdɪfrənt/|adj. 不同的|These words have different meanings.|这些词的意思不同。|基础
+same|/seɪm/|adj. 相同的|We have the same goal.|我们有相同的目标。|基础
+enough|/ɪˈnʌf/|adj. 足够的；adv. 足够地|You have enough time to finish.|你有足够的时间完成。|基础
+useful|/ˈjuːsfəl/|adj. 有用的|Keep a list of useful phrases.|保留一份有用短语的清单。|基础
+example|/ɪɡˈzɑːmpəl/|n. 例子；例句|This example shows how to use the word.|这个例句展示了如何使用这个词。|基础
+sentence|/ˈsentəns/|n. 句子|Read the whole sentence aloud.|大声读出整个句子。|基础
+improve|/ɪmˈpruːv/|v. 改善；提高|I want to improve my listening skills.|我想提高我的听力水平。|进阶
+plan|/plæn/|n. 计划；v. 计划|A simple plan helps me stay focused.|一个简单的计划帮助我保持专注。|进阶
+goal|/ɡəʊl/|n. 目标|My goal is to pass the English test.|我的目标是通过英语考试。|进阶
+habit|/ˈhæbɪt/|n. 习惯|Reading before bed is my new habit.|睡前阅读是我的新习惯。|进阶
+review|/rɪˈvjuː/|v. 复习；n. 回顾|Review old words before learning new ones.|学习新词之前先复习旧词。|进阶
+progress|/ˈprəʊɡres/|n. 进步；进展|Small steps can lead to real progress.|小小的步伐也能带来真正的进步。|进阶
+reason|/ˈriːzən/|n. 原因；理由|Explain the reason for your choice.|解释你作出这个选择的原因。|进阶
+result|/rɪˈzʌlt/|n. 结果|Check the result and learn from it.|检查结果，并从中学习。|进阶
+advice|/ədˈvaɪs/|n. 建议（不可数）|My teacher gave me some useful advice.|老师给了我一些有用的建议。|进阶
+decide|/dɪˈsaɪd/|v. 决定|I decide to study for ten more minutes.|我决定再学十分钟。|进阶
+explain|/ɪkˈspleɪn/|v. 解释；说明|Could you explain this sentence?|你能解释一下这个句子吗？|进阶
+compare|/kəmˈpeə/|v. 比较|Compare your answer with the example.|把你的答案和例子比较一下。|进阶
+continue|/kənˈtɪnjuː/|v. 继续|Let us continue after a short break.|短暂休息后我们继续吧。|进阶
+prepare|/prɪˈpeə/|v. 准备|We prepare for the test together.|我们一起为考试作准备。|进阶
+notice|/ˈnəʊtɪs/|v. 注意到；n. 通知|I notice a mistake in my sentence.|我注意到自己的句子里有一个错误。|进阶
+instead|/ɪnˈsted/|adv. 代替；反而|I put down my phone and read instead.|我放下手机，转而读书。|进阶
+although|/ɔːlˈðəʊ/|conj. 虽然；尽管|Although I was tired, I finished the lesson.|虽然很累，我还是完成了这节课。|进阶
+however|/haʊˈevə/|adv. 然而；不过|The article is short. However, it is not easy.|这篇文章很短，不过并不容易。|进阶
+especially|/ɪˈspeʃəli/|adv. 尤其；特别是|I enjoy reading, especially short stories.|我喜欢阅读，尤其是短篇故事。|进阶
+possible|/ˈpɒsəbəl/|adj. 可能的|It is possible to learn during a short break.|利用短暂休息学习是可能的。|进阶
+achieve|/əˈtʃiːv/|v. 达到；实现|You can achieve your goal step by step.|你可以一步一步实现目标。|四级衔接
+benefit|/ˈbenɪfɪt/|n. 好处；v. 受益|One benefit of reading is a larger vocabulary.|阅读的一个好处是扩大词汇量。|四级衔接
+challenge|/ˈtʃælɪndʒ/|n. 挑战|Learning a language is a long-term challenge.|学习一门语言是一项长期挑战。|四级衔接
+confidence|/ˈkɒnfɪdəns/|n. 信心；自信|Small successes build confidence.|小小的成功能建立信心。|四级衔接
+develop|/dɪˈveləp/|v. 发展；培养|Students develop skills through practice.|学生通过练习培养技能。|四级衔接
+effort|/ˈefət/|n. 努力|Your effort matters more than one bad result.|比起一次糟糕的结果，你的努力更重要。|四级衔接
+environment|/ɪnˈvaɪrənmənt/|n. 环境|A quiet environment helps me concentrate.|安静的环境帮助我集中注意力。|四级衔接
+experience|/ɪkˈspɪəriəns/|n. 经历；经验|The reading club was a useful experience.|这次读书会是一次有益的经历。|四级衔接
+focus|/ˈfəʊkəs/|v. 集中注意力；n. 重点|Focus on one task at a time.|一次专注于一项任务。|四级衔接
+increase|/ɪnˈkriːs/|v. 增加；增长|Increase your reading time slowly.|慢慢增加你的阅读时间。|四级衔接
+knowledge|/ˈnɒlɪdʒ/|n. 知识|Use your knowledge to solve the problem.|用你的知识解决这个问题。|四级衔接
+method|/ˈmeθəd/|n. 方法|This method helps me remember difficult words.|这个方法帮助我记住难词。|四级衔接
+opportunity|/ˌɒpəˈtjuːnəti/|n. 机会|Every conversation is an opportunity to learn.|每次交谈都是一次学习的机会。|四级衔接
+provide|/prəˈvaɪd/|v. 提供|The library provides a place to study.|图书馆提供了一个学习的地方。|四级衔接
+reduce|/rɪˈdjuːs/|v. 减少；降低|A clear plan can reduce stress.|清晰的计划可以减轻压力。|四级衔接
+require|/rɪˈkwaɪə/|v. 需要；要求|Good writing requires clear ideas.|好的写作需要清晰的想法。|四级衔接
+responsible|/rɪˈspɒnsəbəl/|adj. 负责的；有责任的|We are responsible for our own learning.|我们要对自己的学习负责。|四级衔接
+support|/səˈpɔːt/|v. 支持；n. 支持|My friends support my decision.|我的朋友们支持我的决定。|四级衔接
+therefore|/ˈðeəfɔː/|adv. 因此；所以|The word was new. Therefore, I wrote it down.|这个词是生词，所以我把它记了下来。|四级衔接
+value|/ˈvæljuː/|n. 价值；v. 重视|I value the time we spend learning together.|我珍惜我们一起学习的时光。|四级衔接

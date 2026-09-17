@@ -1,0 +1,193 @@
+package com.nuomisp.englishbook
+
+import android.app.Application
+import android.os.SystemClock
+import android.net.Uri
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import com.nuomisp.englishbook.data.*
+import com.nuomisp.englishbook.services.*
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import java.time.LocalDate
+
+data class LearningUi(
+    val ready: Boolean = false,
+    val words: List<Word> = emptyList(), val queue: List<Word> = emptyList(),
+    val progress: Map<String, WordProgress> = emptyMap(),
+    val stats: DailyStats = DailyStats(LocalDate.now().toString()),
+    val due: Int = 0, val learned: Int = 0, val mastered: Int = 0,
+    val articles: List<ReadingArticle> = emptyList(), val dictations: List<DictationSentence> = emptyList(),
+    val messages: List<ChatMessage> = emptyList(), val memory: String = "")
+
+class StudyViewModel(application: Application) : AndroidViewModel(application) {
+    val settingsStore = SecureSettingsStore(application)
+    private val repository = LearningRepository.get(application)
+    private val client = OpenAiClient(settingsStore)
+    private val speech = SpeechController(application, settingsStore)
+    private val mutableUi = MutableStateFlow(LearningUi())
+    val ui = mutableUi.asStateFlow()
+    val settings = MutableStateFlow(runCatching { settingsStore.load() }.getOrDefault(ApiSettings()))
+    val busy = MutableStateFlow(false)
+    val message = MutableStateFlow<String?>(null)
+    val chatError = MutableStateFlow<String?>(null)
+    private var chatJob: Job? = null
+    private var speechJob: Job? = null
+    private var currentPage = "home"
+    private var lastInteraction = SystemClock.elapsedRealtime()
+
+    init {
+        viewModelScope.launch { repository.revision.collect { refresh() } }
+    }
+    private suspend fun refresh() = withContext(Dispatchers.IO) {
+        val words = repository.words()
+        val stats = repository.dailyStats()
+        mutableUi.value = LearningUi(true, words, repository.studyQueue(),
+            words.mapNotNull { word -> repository.progress(word.id)?.let { word.id to it } }.toMap(),
+            stats, repository.dueCount(), repository.learnedCount(), repository.masteredCount(),
+            repository.articles(), repository.dictations(), repository.chatMessages(100), repository.memorySummary())
+    }
+    fun interact() { lastInteraction = SystemClock.elapsedRealtime() }
+    fun pageChanged(page: String) { currentPage = page; interact(); stopSpeech() }
+    fun tickStudyTime(seconds: Int) {
+        if (currentPage in setOf("words", "reading", "listening") && SystemClock.elapsedRealtime() - lastInteraction < 90_000)
+            work { repository.addStudySeconds(seconds) }
+    }
+    private fun work(block: suspend () -> Unit) {
+        viewModelScope.launch {
+            try { withContext(Dispatchers.IO) { block() } }
+            catch (e: CancellationException) { throw e }
+            catch (_: Exception) { message.value = "操作没有完成，请重试。" }
+        }
+    }
+    fun rate(word: Word, rating: ReviewRating, done: () -> Unit = {}) {
+        interact(); viewModelScope.launch {
+            withContext(Dispatchers.IO) { repository.rateWord(word.id, rating) }
+            refresh(); done()
+        }
+    }
+    fun spelling(word: Word, answer: String, done: (Boolean) -> Unit) {
+        interact(); viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) { repository.recordSpelling(word.id, answer) }
+            refresh()
+            done(result)
+        }
+    }
+    fun reading(article: ReadingArticle, answers: List<Int>, done: (ReadingResult) -> Unit) {
+        interact(); viewModelScope.launch { done(withContext(Dispatchers.IO) { repository.recordReading(article.id, answers) }) }
+    }
+    fun dictation(sentence: DictationSentence, answer: String, done: (DictationResult) -> Unit) {
+        interact(); viewModelScope.launch { done(withContext(Dispatchers.IO) { repository.recordDictation(sentence.id, answer) }) }
+    }
+    fun send(text: String, teaching: Boolean = false) {
+        if (text.isBlank() || busy.value) return
+        if (text.length > 4000) { message.value = "单次消息请控制在 4000 字以内，可分段发送。"; return }
+        chatJob = viewModelScope.launch {
+            busy.value = true; chatError.value = null
+            try {
+                withContext(Dispatchers.IO) { repository.addChatMessage("user", text.trim()) }
+                answer(teaching)
+            } catch (e: CancellationException) { throw e }
+            catch (e: Exception) { chatError.value = if (e is ApiException) e.message else "请求失败，消息已保留，可以重试。" }
+            finally { busy.value = false }
+        }
+    }
+    private suspend fun answer(teaching: Boolean) {
+        val history = withContext(Dispatchers.IO) { repository.chatMessages(30) }
+        val context = withContext(Dispatchers.IO) { repository.learningContext() + "\n近期学习记忆（可能过时）：\n" + repository.memorySummary() }
+        val answer = client.chat(history, context, if (teaching) ModelRole.TEACHING else ModelRole.CHAT)
+        withContext(Dispatchers.IO) { repository.addChatMessage("assistant", answer) }
+        val total = withContext(Dispatchers.IO) { repository.chatCount() }
+        if (total >= 12 && total % 12 == 0) updateSummary(silent = true)
+    }
+    fun retry() {
+        if (busy.value || ui.value.messages.lastOrNull()?.role != "user") return
+        chatJob = viewModelScope.launch {
+            busy.value = true; chatError.value = null
+            try { answer(false) }
+            catch (e: CancellationException) { throw e }
+            catch (e: Exception) { chatError.value = if (e is ApiException) e.message else "请求失败，请重试。" }
+            finally { busy.value = false }
+        }
+    }
+    fun cancelChat() { chatJob?.cancel(); chatError.value = "已停止请求，消息已保留。" }
+    fun clearChat() { cancelChat(); chatError.value = null; work { repository.clearChats() } }
+    fun saveMemory(text: String) { work { repository.saveMemorySummary(text.take(3000)) }; message.value = "学习记忆已更新" }
+    fun saveSettings(value: ApiSettings): Boolean {
+        try {
+            if (value.serverModeEnabled && (value.serverUrl.isBlank() || value.serverToken.isBlank()))
+                throw ApiException("使用提醒服务器时，请填写地址和连接令牌。")
+            settingsStore.save(value); settings.value = value
+            ReminderScheduler(getApplication()).schedule(value.remindersEnabled)
+            message.value = "设置已保存"
+            return true
+        } catch (error: Exception) {
+            message.value = if (error is ApiException || error is SettingsStorageException) error.message else "设置未能保存，请检查填写内容。"
+            return false
+        }
+    }
+    fun testConnection(value: ApiSettings) {
+        if (!saveSettings(value)) return
+        viewModelScope.launch {
+            message.value = "正在测试连接…"
+            try { message.value = client.testConnection() }
+            catch (e: Exception) { message.value = if (e is ApiException) e.message else "连接测试未完成。" }
+        }
+    }
+    fun testServer(value: ApiSettings) {
+        if (!saveSettings(value)) return
+        viewModelScope.launch {
+            try { message.value = ReminderServerClient(settingsStore).testConnection() }
+            catch (e: CancellationException) { throw e }
+            catch (e: Exception) { message.value = if (e is ApiException) e.message else "服务器连接未完成。" }
+        }
+    }
+    fun summarizeMemory() { viewModelScope.launch { updateSummary(false) } }
+    private suspend fun updateSummary(silent: Boolean) {
+        try {
+            val messages = withContext(Dispatchers.IO) { repository.chatMessages(30) }
+            if(messages.isEmpty()) { if(!silent) message.value="先聊几句，再整理记忆。"; return }
+            val previous = withContext(Dispatchers.IO) { repository.memorySummary() }
+            val summary = client.summarize(messages,previous)
+            withContext(Dispatchers.IO) {
+                // A manual edit or deletion while the model is working always wins.
+                if (repository.memorySummary()==previous && repository.chatMessages(1).lastOrNull()?.id==messages.lastOrNull()?.id)
+                    repository.saveMemorySummary(summary)
+            }
+            if(!silent) message.value="已整理记忆，你可以继续编辑。"
+        } catch(e:CancellationException) { throw e }
+        catch(e:Exception) { if(!silent) message.value=if(e is ApiException)e.message else "记忆整理失败，原记忆已保留。" }
+    }
+    fun exportBackup(uri: Uri) { work {
+        val data=repository.exportBackup()
+        getApplication<Application>().contentResolver.openOutputStream(uri)?.bufferedWriter()?.use { it.write(data) }
+            ?: error("Cannot open output")
+        message.value="学习备份已导出（不包含密钥）。"
+    } }
+    fun importBackup(uri: Uri) { work {
+        val content=getApplication<Application>().contentResolver.openInputStream(uri)?.use { stream ->
+            val output=java.io.ByteArrayOutputStream()
+            val buffer=ByteArray(8192)
+            while(true) {
+                val size=stream.read(buffer)
+                if(size<0) break
+                require(output.size()+size<=8_000_000)
+                output.write(buffer,0,size)
+            }
+            output.toString("UTF-8")
+        } ?: error("Cannot open backup")
+        cancelChat(); repository.importBackup(content)
+        message.value="学习记录已恢复。"
+    } }
+    fun speak(text: String) {
+        interact(); speechJob?.cancel()
+        speechJob = viewModelScope.launch {
+            try { speech.speak(text) }
+            catch (e: CancellationException) { throw e }
+            catch (e: Exception) { message.value = if (e is ApiException) e.message else "无法播放，请检查语音设置和系统英语语音包。" }
+        }
+    }
+    fun stopSpeech() { speechJob?.cancel(); speech.stop() }
+    override fun onCleared() { speech.close(); super.onCleared() }
+}
