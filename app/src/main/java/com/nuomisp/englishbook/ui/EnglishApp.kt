@@ -24,6 +24,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -87,7 +88,9 @@ private val destinations = listOf(
                 colors=TopAppBarDefaults.topAppBarColors(containerColor=MaterialTheme.colorScheme.background)) },
             snackbarHost={SnackbarHost(snackbar)}, containerColor=MaterialTheme.colorScheme.background
         ) { inset ->
-            Box(Modifier.fillMaxSize().padding(inset)) {
+            Box(Modifier.fillMaxSize().padding(inset).pointerInput(Unit) {
+                awaitPointerEventScope { while(true) { awaitPointerEvent(); model.interact() } }
+            }) {
                 if(!state.ready) CircularProgressIndicator(Modifier.align(Alignment.Center))
                 else when(page) {
                     "home" -> ChatHome(model,state,draft,{draft=it},{navigate(it)})

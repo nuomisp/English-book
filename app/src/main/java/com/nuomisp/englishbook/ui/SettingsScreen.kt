@@ -90,5 +90,5 @@ import java.time.LocalDate
     OutlinedTextField(value=value,onValueChange=change,label={Text(label)},placeholder={Text(placeholder)},singleLine=true,modifier=Modifier.fillMaxWidth(),shape=RoundedCornerShape(16.dp),
         visualTransformation=if(secret&&!visible)PasswordVisualTransformation()else VisualTransformation.None,
         keyboardOptions=KeyboardOptions(keyboardType=if(secret)KeyboardType.Password else KeyboardType.Text,autoCorrectEnabled=false),
-        trailingIcon=if(secret){{IconButton(onClick={visible=!visible}){Icon(if(visible)Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,if(visible)"隐藏密钥" else "显示密钥")}}}else null)
+        trailingIcon={if(secret)IconButton(onClick={visible=!visible}){Icon(if(visible)Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,if(visible)"隐藏密钥" else "显示密钥")}})
 }
