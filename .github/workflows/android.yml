@@ -38,6 +38,26 @@ jobs:
           name: EnglishBook-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+      - name: Build signed APK
+        if: github.event_name != 'pull_request'
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
+            export ANDROID_SIGNING_FILE="$RUNNER_TEMP/englishbook-release.jks"
+            printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$ANDROID_SIGNING_FILE"
+            trap 'rm -f "$ANDROID_SIGNING_FILE"' EXIT
+            ./gradlew assembleRelease
+          fi
+      - name: Upload signed APK
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: EnglishBook-signed-apk
+          path: app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: warn
       - name: Upload checks
         if: always()
         uses: actions/upload-artifact@v4

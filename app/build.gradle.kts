@@ -10,12 +10,24 @@ android {
         applicationId = "com.nuomisp.englishbook"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
+        versionCode = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
         versionName = "0.1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
+    val signingFile = System.getenv("ANDROID_SIGNING_FILE")
+    if (!signingFile.isNullOrBlank()) {
+        signingConfigs.create("privateRelease") {
+            storeFile = file(signingFile)
+            storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
+            keyAlias = System.getenv("ANDROID_KEY_ALIAS")
+            keyPassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
+        }
+    }
     buildTypes {
-        release { isMinifyEnabled = false }
+        release {
+            isMinifyEnabled = false
+            if (!signingFile.isNullOrBlank()) signingConfig = signingConfigs.getByName("privateRelease")
+        }
     }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
     kotlinOptions { jvmTarget = "17" }

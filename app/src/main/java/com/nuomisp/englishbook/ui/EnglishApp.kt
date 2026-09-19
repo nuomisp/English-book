@@ -50,10 +50,12 @@ private val destinations = listOf(
     val message by model.message.collectAsStateWithLifecycle()
     var page by rememberSaveable { mutableStateOf("home") }
     var draft by rememberSaveable { mutableStateOf("") }
+    var teachingDraft by rememberSaveable { mutableStateOf(false) }
     val drawer = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     val snackbar = remember { SnackbarHostState() }
     fun navigate(value: String) { page = value; model.pageChanged(value) }
+    LaunchedEffect(page) { model.pageChanged(page) }
     LaunchedEffect(message) { message?.let { snackbar.showSnackbar(it); model.message.value = null } }
     BackHandler(page != "home" || drawer.isOpen) {
         if (drawer.isOpen) scope.launch { drawer.close() } else navigate("home")
@@ -93,13 +95,14 @@ private val destinations = listOf(
             }) {
                 if(!state.ready) CircularProgressIndicator(Modifier.align(Alignment.Center))
                 else when(page) {
-                    "home" -> ChatHome(model,state,draft,{draft=it},{navigate(it)})
+                    "home" -> ChatHome(model,state,draft,{draft=it},teachingDraft,{teachingDraft=false},{navigate(it)})
                     "words" -> WordsScreen(model,state) { word ->
                         draft="请用适合初中基础的方式讲解 ${word.word}，说明用法并出一道小题。例句：${word.example}"
+                        teachingDraft=true
                         navigate("home")
                     }
-                    "reading" -> ReadingScreen(model,state) { text -> draft=text; navigate("home") }
-                    "listening" -> ListeningScreen(model,state) { text -> draft=text; navigate("home") }
+                    "reading" -> ReadingScreen(model,state) { text -> draft=text; teachingDraft=true; navigate("home") }
+                    "listening" -> ListeningScreen(model,state) { text -> draft=text; teachingDraft=true; navigate("home") }
                     "progress" -> ProgressScreen(state) { navigate(it) }
                     "memory" -> MemoryScreen(model,state)
                     "settings" -> SettingsScreen(model)
@@ -109,7 +112,7 @@ private val destinations = listOf(
     }
 }
 
-@Composable private fun ChatHome(model: StudyViewModel, state: LearningUi, draft: String, onDraft:(String)->Unit, navigate:(String)->Unit) {
+@Composable private fun ChatHome(model: StudyViewModel, state: LearningUi, draft: String, onDraft:(String)->Unit, teaching:Boolean, sent:()->Unit, navigate:(String)->Unit) {
     val busy by model.busy.collectAsStateWithLifecycle()
     val error by model.chatError.collectAsStateWithLifecycle()
     val settings by model.settings.collectAsStateWithLifecycle()
@@ -166,8 +169,8 @@ private val destinations = listOf(
                 Row(Modifier.fillMaxWidth().padding(start=12.dp,end=8.dp,top=4.dp,bottom=4.dp),verticalAlignment=Alignment.Bottom) {
                     TextField(value=draft,onValueChange={onDraft(it.take(4000))},placeholder={Text("问凛，或者说说今天的学习…")},modifier=Modifier.weight(1f).testTag("chat_input"),maxLines=5,
                         colors=TextFieldDefaults.colors(focusedContainerColor=Color.Transparent,unfocusedContainerColor=Color.Transparent,focusedIndicatorColor=Color.Transparent,unfocusedIndicatorColor=Color.Transparent),
-                        keyboardOptions=KeyboardOptions(imeAction=ImeAction.Send),keyboardActions=KeyboardActions(onSend={if(!busy&&draft.isNotBlank()){model.send(draft);onDraft("")}}))
-                    FilledIconButton(onClick={if(busy)model.cancelChat() else {model.send(draft);onDraft("")}},enabled=busy||draft.isNotBlank(),modifier=Modifier.padding(bottom=6.dp).testTag("chat_send")){
+                        keyboardOptions=KeyboardOptions(imeAction=ImeAction.Send),keyboardActions=KeyboardActions(onSend={if(!busy&&draft.isNotBlank()){model.send(draft,teaching);onDraft("");sent()}}))
+                    FilledIconButton(onClick={if(busy)model.cancelChat() else {model.send(draft,teaching);onDraft("");sent()}},enabled=busy||draft.isNotBlank(),modifier=Modifier.padding(bottom=6.dp).testTag("chat_send")){
                         Icon(if(busy)Icons.Outlined.Stop else Icons.Outlined.ArrowUpward,if(busy)"停止生成" else "发送")
                     }
                 }

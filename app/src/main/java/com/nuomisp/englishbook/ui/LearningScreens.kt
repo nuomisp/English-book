@@ -106,9 +106,9 @@ import com.nuomisp.englishbook.data.*
                 Spacer(Modifier.height(12.dp))
                 if(result!=null) TextButton(onClick=onNext){Text("继续下一个")}
                 else Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick={onRated(ReviewRating.AGAIN)},modifier=Modifier.weight(1f)){Text("不认识")}
-                    OutlinedButton(onClick={onRated(ReviewRating.HARD)},modifier=Modifier.weight(1f)){Text("模糊")}
-                    Button(onClick={onRated(ReviewRating.GOOD)},modifier=Modifier.weight(1f).testTag("rate_good")){Text("认识")}
+                    OutlinedButton(onClick={submitting=true;onRated(ReviewRating.AGAIN)},enabled=!submitting,modifier=Modifier.weight(1f)){Text("不认识")}
+                    OutlinedButton(onClick={submitting=true;onRated(ReviewRating.HARD)},enabled=!submitting,modifier=Modifier.weight(1f)){Text("模糊")}
+                    Button(onClick={submitting=true;onRated(ReviewRating.GOOD)},enabled=!submitting,modifier=Modifier.weight(1f).testTag("rate_good")){Text("认识")}
                 }
             }
             if(result==null) TextButton(onClick={spelling=!spelling;model.interact()}){Text(if(spelling)"回到认词" else "试试拼写")}

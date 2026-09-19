@@ -20,15 +20,15 @@
 - MOSS-TTS-Nano **尚未集成**。目前不要下载模型，使用系统 TTS 或语音 API。魅族 21 / Android 16 上的 MOSS 速度、内存和发热还需单独实验。
 - 服务器尚未部署，缺少实际 SSH/域名配置。不是魅族厂商推送，强行停止应用后无法保证通知；后台和 21:30 时间可能受省电策略延迟。
 - 内置内容为原创教学样例，不含历年四级试卷、听力原录音或完整四级词库。未提供发音评分或语音识别。
-- 还没有生产签名发布。云端生成的是测试 APK；系统英语语音包是否可用取决于设备。
+- 已配置固定私有签名，但当前仍是早期验证版；系统英语语音包是否可用取决于设备。
 
 ## 下载 / 构建 APK
 
-仓库的 **Actions → Android APK** 会在 `main` 和 `codex/**` 分支提交时运行，也可手动触发。构建成功后在该次运行的 Artifacts 下载 **EnglishBook-debug-apk**，解压得到 `app-debug.apk`，传到安卓手机安装。
+仓库的 **Actions → Android APK** 会在 `main` 和 `codex/**` 分支提交时运行，也可手动触发。构建成功后在该次运行的 Artifacts 优先下载 **EnglishBook-signed-apk**，解压得到 `app-release.apk`，传到安卓手机安装。debug APK供开发测试，签名与signed版本不同。
 
 工作流使用 JDK 17、Gradle 8.13、AGP 8.11.1、Android SDK 36；执行单元测试、lint、APK 打包，以及 API 35 模拟器原生操作和截图检查。无需在自己的电脑安装 Android Studio。
 
-云端缓存开发签名，缓存失效后可能重新生成并导致旧测试版无法覆盖安装；卸载前先导出学习备份。正式分发前必须配置固定的私有发布签名，不能把签名私钥提交进仓库。
+固定发布签名通过仓库 Secrets 保存，后续signed版本可沿用签名覆盖更新。签名私钥不提交源码；本机签名备份位于忽略的 `.local/signing`，密码受当前Windows用户DPAPI保护，仓库所有者应另行安全备份。Actions缓存的debug签名可能失效，不要把debug版作为日常学习安装包。
 
 如本地已有 JDK 17 与 Android SDK，可以用 `./gradlew testDebugUnitTest lintDebug assembleDebug`（Windows 使用 `gradlew.bat`）。
 
