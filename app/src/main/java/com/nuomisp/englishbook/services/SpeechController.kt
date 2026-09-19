@@ -40,7 +40,7 @@ class SpeechController(context: Context, private val settingsStore: SecureSettin
     private var systemCompletion: CompletableDeferred<Unit>? = null
 
     /** Cancels earlier playback, then completes when this utterance finishes (or throws a safe error). */
-    suspend fun speak(text: String): Unit = coroutineScope {
+    suspend fun speak(text: String, onStarted:()->Unit = {}): Unit = coroutineScope {
         if (closed) throw ApiException("语音播放器已经关闭。")
         val cleanText = text.trim()
         if (cleanText.isEmpty()) return@coroutineScope
@@ -53,8 +53,8 @@ class SpeechController(context: Context, private val settingsStore: SecureSettin
                 currentCoroutineContext().ensureActive()
                 val settings = settingsStore.load()
                 when (settings.ttsMode) {
-                    TtsMode.SYSTEM -> speakSystem(cleanText)
-                    TtsMode.OPENAI_API -> playFile(loadSpeech(cleanText, settings))
+                    TtsMode.SYSTEM -> speakSystem(cleanText,onStarted)
+                    TtsMode.OPENAI_API -> playFile(loadSpeech(cleanText, settings),onStarted)
                 }
             }
         } finally {
@@ -73,7 +73,7 @@ class SpeechController(context: Context, private val settingsStore: SecureSettin
         }
     }
 
-    private suspend fun speakSystem(text: String) = withContext(Dispatchers.Main.immediate) {
+    private suspend fun speakSystem(text: String,onStarted:()->Unit) = withContext(Dispatchers.Main.immediate) {
         val ready = engineReady ?: CompletableDeferred<Int>().also { signal ->
             engineReady = signal
             engine = TextToSpeech(appContext) { status -> signal.complete(status) }
@@ -91,7 +91,7 @@ class SpeechController(context: Context, private val settingsStore: SecureSettin
         val completion = CompletableDeferred<Unit>()
         systemCompletion = completion
         tts.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
-            override fun onStart(id: String?) = Unit
+            override fun onStart(id: String?) {if(id==utteranceId)onStarted()}
             override fun onDone(id: String?) { if (id == utteranceId) completion.complete(Unit) }
             @Deprecated("Legacy callback required by platform")
             override fun onError(id: String?) {
@@ -141,14 +141,14 @@ class SpeechController(context: Context, private val settingsStore: SecureSettin
         file
     }
 
-    private suspend fun playFile(file: File) = withContext(Dispatchers.Main.immediate) {
+    private suspend fun playFile(file: File,onStarted:()->Unit) = withContext(Dispatchers.Main.immediate) {
         val completion = CompletableDeferred<Unit>()
         val media = MediaPlayer()
         player = media
         try {
             media.setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA)
                 .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build())
-            media.setOnPreparedListener { it.start() }
+            media.setOnPreparedListener { onStarted();it.start() }
             media.setOnCompletionListener { completion.complete(Unit) }
             media.setOnErrorListener { _, _, _ ->
                 file.delete()

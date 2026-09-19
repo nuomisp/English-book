@@ -4,6 +4,8 @@ package com.nuomisp.englishbook.ui
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -39,6 +41,7 @@ private data class Destination(val id: String, val label: String, val icon: Imag
 private val destinations = listOf(
     Destination("home", "凛 · 学习搭档", Icons.Outlined.AutoAwesome),
     Destination("words", "单词练习", Icons.Outlined.Style),
+    Destination("saved", "生词本与收藏句", Icons.Outlined.Bookmarks),
     Destination("reading", "阅读小屋", Icons.AutoMirrored.Outlined.MenuBook),
     Destination("listening", "听力与听写", Icons.Outlined.Headphones),
     Destination("progress", "学习记录", Icons.Outlined.Insights),
@@ -62,6 +65,7 @@ private val destinations = listOf(
     }
     ModalNavigationDrawer(drawerState = drawer, drawerContent = {
         ModalDrawerSheet(drawerContainerColor = MaterialTheme.colorScheme.surfaceContainerLow) {
+          Column(Modifier.verticalScroll(rememberScrollState())) {
             Spacer(Modifier.height(30.dp))
             Row(Modifier.padding(24.dp), verticalAlignment = Alignment.CenterVertically) {
                 CompanionAvatar(48.dp); Spacer(Modifier.width(14.dp))
@@ -73,9 +77,10 @@ private val destinations = listOf(
                     onClick={ navigate(item.id); scope.launch { drawer.close() } },
                     icon={Icon(item.icon,null)}, modifier=Modifier.padding(horizontal=12.dp,vertical=3.dp).testTag("nav_${item.id}"))
             }
-            Spacer(Modifier.weight(1f))
+            Spacer(Modifier.height(16.dp))
             Text("初中基础 → CET-4\n每天 120 分钟 · 词汇优先", Modifier.padding(26.dp),
                 style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+          }
         }
     }) {
         Scaffold(
@@ -104,12 +109,14 @@ private val destinations = listOf(
                     "reading" -> ReadingScreen(model,state) { text -> draft=text; teachingDraft=true; navigate("home") }
                     "listening" -> ListeningScreen(model,state) { text -> draft=text; teachingDraft=true; navigate("home") }
                     "progress" -> ProgressScreen(state) { navigate(it) }
+                    "saved" -> SavedCardsScreen(model,state)
                     "memory" -> MemoryScreen(model,state)
                     "settings" -> SettingsScreen(model)
                 }
             }
         }
     }
+    StudyCardSheet(model)
 }
 
 @Composable private fun ChatHome(model: StudyViewModel, state: LearningUi, draft: String, onDraft:(String)->Unit, teaching:Boolean, sent:()->Unit, navigate:(String)->Unit) {
@@ -153,9 +160,8 @@ private val destinations = listOf(
                         }
                     } else Column {
                         Row(verticalAlignment=Alignment.CenterVertically){CompanionAvatar(28.dp); Spacer(Modifier.width(8.dp)); Text("凛",style=MaterialTheme.typography.labelMedium)}
-                        Spacer(Modifier.height(12.dp)); SelectionContainer { Text(message.content,style=MaterialTheme.typography.bodyLarge) }
-                        Row { TextButton(onClick={model.speak(message.content)}){Icon(Icons.Outlined.VolumeUp,null,Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text("朗读")}
-                            TextButton(onClick={model.stopSpeech()}){Text("停止")}}
+                        Spacer(Modifier.height(12.dp)); EnglishRichText(message.content,"助手回复",model,Modifier.testTag("assistant_text_${message.id}"))
+                        SentenceCardButtons(message.content,"助手回复",model)
                     }
                 }
                 if(busy) item { Row(verticalAlignment=Alignment.CenterVertically){CompanionAvatar(28.dp);Spacer(Modifier.width(12.dp));Text("凛正在想怎么讲清楚…",color=MaterialTheme.colorScheme.onSurfaceVariant);Spacer(Modifier.width(10.dp));CircularProgressIndicator(Modifier.size(14.dp),strokeWidth=2.dp)} }

@@ -79,7 +79,7 @@ import java.time.LocalDate
             OutlinedButton(onClick={export.launch("englishbook-${LocalDate.now()}.json")}){Text("导出备份")}
             OutlinedButton(onClick={restore.launch(arrayOf("application/json","text/plain"))}){Text("恢复备份")}
         } }
-        item { Text("葱伴英语 0.1.0 · 原生安卓验证版\n内置 100 个起步词和原创练习，尚非完整四级词库。",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant) }
+        item { Text("葱伴英语 0.2.0 · 词库与词句卡\n词库来源：ECDICT（MIT）；精确词数与版本见单词页的词库来源。考试标签不等同于最新官方完整考纲。",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant) }
     }
     if(restoreUri!=null) AlertDialog(onDismissRequest={restoreUri=null},title={Text("用备份替换学习记录？")},text={Text("会替换当前单词进度、练习记录、聊天和记忆。API 设置不受影响，建议先导出当前备份。")},confirmButton={TextButton(onClick={restoreUri?.let{model.importBackup(it)};restoreUri=null}){Text("恢复")}},dismissButton={TextButton(onClick={restoreUri=null}){Text("取消")}})
 }

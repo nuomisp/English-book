@@ -17,7 +17,7 @@ class NativeFlowTest {
 
     private fun page(id: String) {
         compose.onNodeWithTag("menu").performClick()
-        compose.onNodeWithTag("nav_$id").performClick()
+        compose.onNodeWithTag("nav_$id").performScrollTo().performClick()
         compose.waitForIdle()
     }
     private fun capture(name: String) {
@@ -57,5 +57,16 @@ class NativeFlowTest {
         page("progress")
         capture("06-progress")
         page("home")
+        val repository=LearningRepository.get(context)
+        val record=repository.addChatMessage("assistant","studying")
+        compose.waitUntil(10_000){compose.onAllNodesWithTag("assistant_text_${record.id}").fetchSemanticsNodes().isNotEmpty()}
+        compose.onNodeWithTag("assistant_text_${record.id}").performScrollTo().performClick()
+        compose.waitUntil(10_000){compose.onAllNodesWithTag("study_card").fetchSemanticsNodes().isNotEmpty()}
+        compose.onNodeWithText("单词卡").assertExists()
+        capture("07-word-card")
+        compose.onNodeWithTag("card_save").performScrollTo().performClick()
+        compose.waitUntil(10_000){repository.savedCards().any{it.wordId=="study"}}
+        compose.activityRule.scenario.onActivity { activity->androidx.lifecycle.ViewModelProvider(activity)[StudyViewModel::class.java].closeCard() }
+        repository.clearChats()
     }
 }

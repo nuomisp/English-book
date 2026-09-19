@@ -18,33 +18,76 @@ import org.json.JSONObject
 class LearningRepository(context: Context) {
     private val appContext = context.applicationContext
     private val helper = LearningDatabase(appContext)
-    private val catalog by lazy { StarterContent.words(appContext) }
+    private val lexicon by lazy { Lexicon(appContext) }
+    private val catalog by lazy { lexicon.words }
     private val catalogById by lazy { catalog.associateBy { it.id } }
     private val _revision = MutableStateFlow(0L)
     val revision: StateFlow<Long> = _revision.asStateFlow()
 
     fun words(): List<Word> = catalog
     fun articles(): List<ReadingArticle> = StarterContent.articles
-    fun dictations(): List<DictationSentence> = catalog.take(40).map {
+    fun dictations(): List<DictationSentence> = StarterContent.words(appContext).take(40).map {
         DictationSentence("sentence-${it.id}", it.example, it.exampleZh, it.level)
     }
 
     fun progress(wordId: String): WordProgress? = progress(helper.readableDatabase, wordId)
+    fun progressSnapshot()=allProgress().associateBy { it.wordId }
+    fun lookup(text:String)=lexicon.lookup(text)
+    fun dictionaryInfo()=lexicon.metadata
+    fun preferences():StudyPreferences {
+        val values=helper.readableDatabase.rawQuery("SELECT key,value FROM study_preferences",null).use { c->
+            buildMap { while(c.moveToNext())put(c.getString(0),c.getString(1)) }
+        }
+        return StudyPreferences(values["deck"] ?: "foundation",values["daily_new"]?.toIntOrNull() ?: 20)
+    }
+    @Synchronized fun savePreferences(value:StudyPreferences) {
+        require(value.deck in setOf("foundation","highschool","cet4") && value.dailyNew in 0..100)
+        mutate { db->
+            listOf("deck" to value.deck,"daily_new" to value.dailyNew.toString()).forEach{(key,value)->
+                db.insertWithOnConflict("study_preferences",null,ContentValues().apply{put("key",key);put("value",value)},SQLiteDatabase.CONFLICT_REPLACE)
+            }
+        }
+    }
+    fun overrides():Map<String,String> = helper.readableDatabase.rawQuery("SELECT word_id,status FROM word_overrides",null).use{c->buildMap{while(c.moveToNext())put(c.getString(0),c.getString(1))}}
+    @Synchronized fun setWordStatus(wordId:String,status:String) {
+        require(wordId in catalogById && status in setOf("queued","familiar",""))
+        mutate { db->
+            undo=null
+            if(status.isEmpty())db.delete("word_overrides","word_id = ?",arrayOf(wordId))
+            else db.insertWithOnConflict("word_overrides",null,ContentValues().apply{put("word_id",wordId);put("status",status)},SQLiteDatabase.CONFLICT_REPLACE)
+        }
+    }
+    fun savedCards():List<SavedCard> = helper.readableDatabase.rawQuery("SELECT * FROM saved_cards ORDER BY created_at DESC",null).use { c -> buildList {
+        while(c.moveToNext())add(SavedCard(c.getString(0),c.getString(1),c.getString(2),c.getString(3),c.getString(4),c.getString(5),c.getLong(6)))
+    } }
+    @Synchronized fun saveCard(kind:String,text:String,wordId:String,context:String,source:String) {
+        require(kind in setOf("word","sentence") && text.isNotBlank() && text.length<=3000)
+        require(wordId.isEmpty() || wordId in catalogById)
+        val id=if(kind=="word" && wordId.isNotEmpty())"word:$wordId" else kind+":"+java.security.MessageDigest.getInstance("SHA-256").digest(Lexicon.normalize(text).toByteArray()).joinToString(""){"%02x".format(it)}
+        mutate { db->db.insertWithOnConflict("saved_cards",null,ContentValues().apply {
+            put("id",id);put("kind",kind);put("text",text);put("word_id",wordId);put("context",context.take(3000));put("source",source.take(200));put("created_at",System.currentTimeMillis())
+        },SQLiteDatabase.CONFLICT_REPLACE) }
+    }
+    @Synchronized fun removeCard(id:String)=mutate{it.delete("saved_cards","id = ?",arrayOf(id))}
 
     /** Due reviews first, then up to today's remaining 20 new words. */
     fun studyQueue(limit: Int = 20): List<Word> {
         if (limit <= 0) return emptyList()
         val now = System.currentTimeMillis()
         val progress = allProgress().associateBy { it.wordId }
-        val due = progress.values.filter { it.nextReviewAt <= now }
+        val overrides=overrides()
+        val preferences=preferences()
+        val due = progress.values.filter { it.nextReviewAt <= now && overrides[it.wordId]!="familiar" }
             .sortedBy { it.nextReviewAt }.mapNotNull { catalogById[it.wordId] }
-        val remainingNew = (20 - dailyStats().newWords).coerceAtLeast(0)
-        val newWords = catalog.filter { it.id !in progress }.take(remainingNew)
+        val remainingNew = (preferences.dailyNew - dailyStats().newWords).coerceAtLeast(0)
+        val tag=when(preferences.deck){"cet4"->"cet4";"highschool"->"gk";else->"zk"}
+        val newWords = catalog.filter { it.id !in progress && overrides[it.id]!="familiar" && (tag in it.tags || overrides[it.id]=="queued") }
+            .sortedWith(compareBy<Word>{if(overrides[it.id]=="queued")0 else 1}.thenBy{it.rank}).take(remainingNew)
         return (due + newWords).take(limit.coerceAtMost(200))
     }
 
     fun dueCount(): Int = count(
-        "SELECT COUNT(*) FROM word_progress WHERE next_review_at <= ?",
+        "SELECT COUNT(*) FROM word_progress WHERE next_review_at <= ? AND word_id NOT IN (SELECT word_id FROM word_overrides WHERE status='familiar')",
         arrayOf(System.currentTimeMillis().toString()),
     )
 
@@ -65,8 +108,9 @@ class LearningRepository(context: Context) {
         val now = System.currentTimeMillis()
         mutate { db ->
             val previous = progress(db, wordId)
+            val oldStatus=overrides()[wordId]
             val next = ReviewScheduler.next(wordId, previous, rating, now)
-            db.insertOrThrow("word_reviews", null, ContentValues().apply {
+            val reviewId=db.insertOrThrow("word_reviews", null, ContentValues().apply {
                 put("word_id", wordId)
                 put("reviewed_at", now)
                 put("day", day(now))
@@ -74,7 +118,26 @@ class LearningRepository(context: Context) {
                 put("was_new", if (previous == null) 1 else 0)
             })
             db.insertWithOnConflict("word_progress", null, progressValues(next), SQLiteDatabase.CONFLICT_REPLACE)
+            db.delete("word_overrides","word_id = ?",arrayOf(wordId))
+            undo=ReviewUndo(wordId,reviewId,previous,oldStatus)
         }
+    }
+    private data class ReviewUndo(val wordId:String,val reviewId:Long,val previous:WordProgress?,val status:String?)
+    private var undo:ReviewUndo?=null
+    fun canUndoReview()=undo!=null
+    @Synchronized fun undoReview():Boolean {
+        val state=undo ?: return false
+        val latest=helper.readableDatabase.rawQuery("SELECT MAX(id) FROM word_reviews",null).use { if(it.moveToFirst())it.getLong(0) else -1L }
+        if(latest!=state.reviewId){undo=null;return false}
+        mutate { db->
+            db.delete("word_reviews","id = ?",arrayOf(state.reviewId.toString()))
+            if(state.previous==null)db.delete("word_progress","word_id = ?",arrayOf(state.wordId))
+            else db.insertWithOnConflict("word_progress",null,progressValues(state.previous),SQLiteDatabase.CONFLICT_REPLACE)
+            db.delete("word_overrides","word_id = ?",arrayOf(state.wordId))
+            if(state.status!=null)db.insertOrThrow("word_overrides",null,ContentValues().apply{put("word_id",state.wordId);put("status",state.status)})
+            undo=null
+        }
+        return true
     }
 
     fun recordSpelling(wordId: String, answer: String): Boolean {
@@ -204,6 +267,7 @@ class LearningRepository(context: Context) {
             appendLine("学习档案：英语初中基础，目标大学英语四级；每天目标 120 分钟，前期优先词汇约 70 分钟。")
             appendLine("本地学习记录（${stats.date}）：学习 ${stats.studyMinutes} 分钟；新词 ${stats.newWords} 个，复习 ${stats.reviewedWords} 个；阅读完成 ${stats.readingCompleted} 篇；听写 ${stats.listeningAttempts} 次，正确 ${stats.listeningCorrect} 次。")
             appendLine("累计接触 ${learnedCount()} 个词，达到复习稳定标准 ${masteredCount()} 个；当前到期复习 ${dueCount()} 个。")
+            appendLine("学习设置：${preferences().deck}，每天最多 ${preferences().dailyNew} 个新词。收藏 ${savedCards().size} 张词句卡。用户自行标记熟悉 ${overrides().values.count{it=="familiar"}} 词（不等于测验掌握）。")
             val weak = weakWords()
             appendLine(if (weak.isEmpty()) "尚无足够易错词记录；不要编造学生的错误或进步。" else "需要关注的词：" + weak.joinToString("；") { "${it.word}（${it.meaning}）" })
             append("学习数据仅来自本应用；新词或复习计数不等于真正掌握，不能据此断言已达到四级水平。")
@@ -216,7 +280,7 @@ class LearningRepository(context: Context) {
         val db = helper.readableDatabase
         db.beginTransaction()
         try {
-            val output = JSONObject().put("format", "english-book-learning").put("version", 1)
+            val output = JSONObject().put("format", "english-book-learning").put("version", 2)
                 .put("exportedAt", System.currentTimeMillis())
             BACKUP_TABLES.forEach { table ->
                 val rows = JSONArray()
@@ -246,7 +310,7 @@ class LearningRepository(context: Context) {
     fun importBackup(json: String) {
         require(json.length <= 16_000_000) { "Backup is too large" }
         val backup = JSONObject(json)
-        require(backup.getString("format") == "english-book-learning" && backup.getInt("version") == 1) {
+        require(backup.getString("format") == "english-book-learning" && backup.getInt("version") in 1..2) {
             "Unsupported backup format"
         }
         val db = helper.readableDatabase
@@ -256,7 +320,7 @@ class LearningRepository(context: Context) {
                     while (cursor.moveToNext()) put(cursor.getString(1), cursor.getString(2))
                 }
             }
-            val rows = backup.getJSONArray(table)
+            val rows = if(backup.getInt("version")==1 && table in V2_TABLES) JSONArray() else backup.getJSONArray(table)
             require(rows.length() <= 100_000) { "Too many backup rows" }
             (0 until rows.length()).map { index ->
                 val row = rows.getJSONObject(index)
@@ -288,11 +352,12 @@ class LearningRepository(context: Context) {
         mutate { writable ->
             BACKUP_TABLES.forEach { writable.delete(it, null, null) }
             prepared.forEach { (table, rows) -> rows.forEach { writable.insertOrThrow(table, null, it) } }
+            undo=null
         }
     }
 
     private fun validateBackupRow(table: String, row: JSONObject) {
-        if (row.has("id")) require(row.getLong("id") > 0)
+        if (row.has("id") && table!="saved_cards") require(row.getLong("id") > 0)
         if (row.has("day")) LocalDate.parse(row.getString("day"))
         if (row.has("created_at")) require(row.getLong("created_at") >= 0)
         when (table) {
@@ -332,6 +397,18 @@ class LearningRepository(context: Context) {
                 require(row.getString("content").let { it.isNotBlank() && it.length <= 100_000 })
             }
             "metadata" -> require(row.getString("key") == "memory_summary" && row.getString("value").length <= 30_000)
+            "word_overrides" -> require(row.getString("word_id") in catalogById && row.getString("status") in setOf("queued","familiar"))
+            "study_preferences" -> when(row.getString("key")) {
+                "deck" -> require(row.getString("value") in setOf("foundation","highschool","cet4"))
+                "daily_new" -> require(row.getString("value").toInt() in 0..100)
+                else -> error("Unknown study preference")
+            }
+            "saved_cards" -> {
+                require(row.getString("id").length in 1..200 && row.getString("kind") in setOf("word","sentence"))
+                require(row.getString("text").isNotBlank() && row.getString("text").length<=3000)
+                require(row.getString("word_id").isEmpty() || row.getString("word_id") in catalogById)
+                require(row.getString("context").length<=3000 && row.getString("source").length<=200)
+            }
         }
     }
 
@@ -379,11 +456,12 @@ class LearningRepository(context: Context) {
         fun get(context: Context): LearningRepository = instance ?: synchronized(this) {
             instance ?: LearningRepository(context).also { instance = it }
         }
-        private val BACKUP_TABLES = listOf("word_progress", "word_reviews", "study_time", "reading_attempts", "dictation_attempts", "chat_messages", "metadata")
+        private val V2_TABLES=listOf("saved_cards","word_overrides","study_preferences")
+        private val BACKUP_TABLES = listOf("word_progress", "word_reviews", "study_time", "reading_attempts", "dictation_attempts", "chat_messages", "metadata")+V2_TABLES
     }
 }
 
-private class LearningDatabase(context: Context) : SQLiteOpenHelper(context, "english_book.db", null, 1) {
+internal class LearningDatabase(context: Context) : SQLiteOpenHelper(context, "english_book.db", null, 2) {
     override fun onConfigure(db: SQLiteDatabase) {
         super.onConfigure(db)
         db.setForeignKeyConstraintsEnabled(true)
@@ -401,10 +479,15 @@ private class LearningDatabase(context: Context) : SQLiteOpenHelper(context, "en
         db.execSQL("CREATE INDEX dictation_day ON dictation_attempts(day)")
         db.execSQL("CREATE TABLE chat_messages (id INTEGER PRIMARY KEY AUTOINCREMENT, role TEXT NOT NULL CHECK(role IN ('user', 'assistant')), content TEXT NOT NULL, created_at INTEGER NOT NULL)")
         db.execSQL("CREATE TABLE metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
+        addVersionTwo(db)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        // Future versions must add explicit non-destructive migrations here.
-        error("Missing database migration from $oldVersion to $newVersion")
+        if(oldVersion<2)addVersionTwo(db)
+    }
+    private fun addVersionTwo(db:SQLiteDatabase) {
+        db.execSQL("CREATE TABLE saved_cards (id TEXT PRIMARY KEY,kind TEXT NOT NULL,text TEXT NOT NULL,word_id TEXT NOT NULL,context TEXT NOT NULL,source TEXT NOT NULL,created_at INTEGER NOT NULL)")
+        db.execSQL("CREATE TABLE word_overrides (word_id TEXT PRIMARY KEY,status TEXT NOT NULL)")
+        db.execSQL("CREATE TABLE study_preferences (key TEXT PRIMARY KEY,value TEXT NOT NULL)")
     }
 }

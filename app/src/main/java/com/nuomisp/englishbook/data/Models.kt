@@ -8,6 +8,10 @@ data class Word(
     val example: String,
     val exampleZh: String,
     val level: String,
+    val tags: Set<String> = emptySet(),
+    val rank: Int = 999999,
+    val forms: String = "",
+    val source: String = "原创起步词",
 )
 
 enum class ReviewRating { AGAIN, HARD, GOOD, EASY }
@@ -68,3 +72,8 @@ data class ChatMessage(
     val content: String,
     val createdAt: Long,
 )
+
+data class StudyPreferences(val deck: String = "foundation", val dailyNew: Int = 20)
+data class SavedCard(val id:String, val kind:String, val text:String, val wordId:String,
+    val context:String, val source:String, val createdAt:Long)
+data class CardRequest(val text:String, val context:String, val source:String)

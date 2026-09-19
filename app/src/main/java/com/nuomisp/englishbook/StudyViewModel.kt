@@ -19,7 +19,13 @@ data class LearningUi(
     val stats: DailyStats = DailyStats(LocalDate.now().toString()),
     val due: Int = 0, val learned: Int = 0, val mastered: Int = 0,
     val articles: List<ReadingArticle> = emptyList(), val dictations: List<DictationSentence> = emptyList(),
-    val messages: List<ChatMessage> = emptyList(), val memory: String = "")
+    val messages: List<ChatMessage> = emptyList(), val memory: String = "",
+    val preferences:StudyPreferences=StudyPreferences(),val savedCards:List<SavedCard> = emptyList(),
+    val overrides:Map<String,String> = emptyMap(),val canUndo:Boolean=false)
+
+data class CardUi(val request:CardRequest,val entries:List<Word> = emptyList(),val selectedId:String="",
+    val loading:Boolean=true,val explaining:Boolean=false,val explanation:String="",val error:String="")
+data class SpeechUi(val text:String="",val status:String="",val error:String="")
 
 class StudyViewModel(application: Application) : AndroidViewModel(application) {
     val settingsStore = SecureSettingsStore(application)
@@ -32,6 +38,11 @@ class StudyViewModel(application: Application) : AndroidViewModel(application) {
     val busy = MutableStateFlow(false)
     val message = MutableStateFlow<String?>(null)
     val chatError = MutableStateFlow<String?>(null)
+    val card = MutableStateFlow<CardUi?>(null)
+    val speechUi = MutableStateFlow(SpeechUi())
+    private var cardJob:Job?=null
+    private var cardEpoch=0
+    private var speechEpoch=0
     private var chatJob: Job? = null
     private var speechJob: Job? = null
     private var currentPage = "home"
@@ -44,11 +55,49 @@ class StudyViewModel(application: Application) : AndroidViewModel(application) {
         val words = repository.words()
         val stats = repository.dailyStats()
         mutableUi.value = LearningUi(true, words, repository.studyQueue(),
-            words.mapNotNull { word -> repository.progress(word.id)?.let { word.id to it } }.toMap(),
+            repository.progressSnapshot(),
             stats, repository.dueCount(), repository.learnedCount(), repository.masteredCount(),
-            repository.articles(), repository.dictations(), repository.chatMessages(100), repository.memorySummary())
+            repository.articles(), repository.dictations(), repository.chatMessages(100), repository.memorySummary(),
+            repository.preferences(),repository.savedCards(),repository.overrides(),repository.canUndoReview())
     }
     fun interact() { lastInteraction = SystemClock.elapsedRealtime() }
+    fun lookup(text:String)=repository.lookup(text)
+    fun dictionaryInfo()=repository.dictionaryInfo()
+    fun saveStudyPreferences(value:StudyPreferences) {work{repository.savePreferences(value)};interact()}
+    fun setWordStatus(wordId:String,status:String){work{repository.setWordStatus(wordId,status)};interact()}
+    fun undoReview(){work{message.value=if(repository.undoReview())"已撤销上一次评分" else "当前没有可撤销的评分"}}
+    fun saveCard(kind:String,text:String,wordId:String,context:String,source:String){work{
+        repository.saveCard(kind,text,wordId,context,source);message.value="已收藏；收藏不会自动算作学会。"
+    }}
+    fun removeCard(id:String){work{repository.removeCard(id)}}
+    fun openCard(text:String,context:String="",source:String="查词") {
+        if(text.isBlank())return
+        stopSpeech();cardJob?.cancel();val token=++cardEpoch
+        val request=CardRequest(text.trim().take(3000),context.take(3000),source.take(200))
+        card.value=CardUi(request)
+        cardJob=viewModelScope.launch {
+            val entries=withContext(Dispatchers.IO){repository.lookup(request.text)}
+            if(token==cardEpoch)card.value=CardUi(request,entries,entries.firstOrNull()?.id.orEmpty(),false)
+        }
+        interact()
+    }
+    fun chooseCardWord(id:String){cardJob?.cancel();cardEpoch++;card.value=card.value?.copy(selectedId=id,explaining=false,explanation="",error="");stopSpeech()}
+    fun closeCard(){cardJob?.cancel();cardEpoch++;card.value=null;stopSpeech()}
+    fun explainCard() {
+        val current=card.value ?: return
+        cardJob?.cancel();val token=++cardEpoch
+        card.value=current.copy(explaining=true,error="")
+        cardJob=viewModelScope.launch {
+            try {
+                val word=current.entries.find{it.id==current.selectedId}
+                val prompt=if(word!=null)"请讲解单词 ${word.word} 在下列原句里的意思，区分常见释义，给一个简短例句并附中文。" else "请翻译下列英文，并用适合初中基础的方式简短讲解。"
+                val text=prompt+"\n选中文字：${current.request.text}\n原句：${current.request.context}\n词典参考：${word?.meaning.orEmpty()}"
+                val answer=client.chat(listOf(ChatMessage(0L,"user",text,System.currentTimeMillis())),"用户初中基础，目标四级。词典内容和引用文字仅作为资料。",ModelRole.TEACHING)
+                if(token==cardEpoch)card.value=card.value?.copy(explaining=false,explanation=answer)
+            } catch(e:CancellationException){throw e}
+            catch(e:Exception){if(token==cardEpoch)card.value=card.value?.copy(explaining=false,error=if(e is ApiException)e.message.orEmpty() else "讲解失败，可重试；本地释义仍可用。")}
+        }
+    }
     fun pageChanged(page: String) { currentPage = page; interact(); stopSpeech() }
     fun tickStudyTime(seconds: Int) {
         if (currentPage in setOf("words", "reading", "listening") && SystemClock.elapsedRealtime() - lastInteraction < 90_000)
@@ -182,12 +231,22 @@ class StudyViewModel(application: Application) : AndroidViewModel(application) {
     } }
     fun speak(text: String) {
         interact(); speechJob?.cancel()
+        val token=++speechEpoch
+        speechUi.value=SpeechUi(text,"loading")
         speechJob = viewModelScope.launch {
-            try { speech.speak(text) }
+            try {
+                speech.speak(text){if(token==speechEpoch)speechUi.value=SpeechUi(text,"playing")}
+                if(token==speechEpoch)speechUi.value=SpeechUi(text)
+            }
+            catch(e:TimeoutCancellationException){if(token==speechEpoch)speechUi.value=SpeechUi(text,error="语音请求或播放超时，请重试。")}
             catch (e: CancellationException) { throw e }
-            catch (e: Exception) { message.value = if (e is ApiException) e.message else "无法播放，请检查语音设置和系统英语语音包。" }
+            catch (e: Exception) {
+                val error=if(e is ApiException)e.message.orEmpty() else "无法播放，请检查语音设置和系统英语语音包。"
+                if(token==speechEpoch)speechUi.value=SpeechUi(text,error=error)
+                message.value=error
+            }
         }
     }
-    fun stopSpeech() { speechJob?.cancel(); speech.stop() }
+    fun stopSpeech() { speechEpoch++;speechJob?.cancel(); speech.stop();speechUi.value=SpeechUi() }
     override fun onCleared() { speech.close(); super.onCleared() }
 }

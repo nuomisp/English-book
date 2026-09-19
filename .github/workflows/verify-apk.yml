@@ -1,9 +1,11 @@
 name: Signed APK visual verification
 on:
-  push:
-    paths: ['.github/workflows/verify-apk.yml', 'scripts/capture-apk-ui.py']
-    branches: ['codex/**']
   workflow_dispatch:
+    inputs:
+      artifact_run_id:
+        description: 'Run that produced the signed APK'
+        type: string
+        required: true
 permissions:
   contents: read
   actions: read
@@ -17,7 +19,7 @@ jobs:
         with:
           name: EnglishBook-signed-apk
           path: release-apk
-          run-id: 35437689328
+          run-id: ${{ inputs.artifact_run_id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Enable KVM
         run: |

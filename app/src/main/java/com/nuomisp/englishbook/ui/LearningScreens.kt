@@ -30,9 +30,12 @@ import com.nuomisp.englishbook.data.*
     var browsing by rememberSaveable { mutableStateOf(false) }
     var search by rememberSaveable { mutableStateOf("") }
     var selectedId by rememberSaveable { mutableStateOf<String?>(null) }
+    var options by remember {mutableStateOf(false)}
+    var sourceInfo by remember {mutableStateOf(false)}
     var activeId by rememberSaveable { mutableStateOf<String?>(null) }
-    LaunchedEffect(state.queue,activeId) { if(activeId==null) activeId=state.queue.firstOrNull()?.id }
+    LaunchedEffect(state.queue,activeId,state.preferences) { if(activeId==null || state.overrides[activeId]=="familiar") activeId=state.queue.firstOrNull()?.id }
     val word = (selectedId ?: activeId)?.let { id->state.words.find{it.id==id} }
+    val found=remember(search,state.words){(if(search.isBlank())state.words else (model.lookup(search)+state.words.filter{it.word.contains(search,true)||it.meaning.contains(search)}).distinctBy{it.id}).take(100)}
     LazyColumn(Modifier.fillMaxSize().testTag("words_screen"),contentPadding=PaddingValues(24.dp),verticalArrangement=Arrangement.spacedBy(20.dp)) {
         item {
             Text("把每一个词，\n变成老朋友。",style=MaterialTheme.typography.headlineMedium)
@@ -46,14 +49,17 @@ import com.nuomisp.englishbook.data.*
                 FilterChip(selected=!browsing,onClick={browsing=false;selectedId=null},label={Text("今日练习")})
                 FilterChip(selected=browsing,onClick={browsing=true;selectedId=null},label={Text("词库 · ${state.words.size}")})
             }
+            Row {TextButton(onClick={options=true}){Text("学习设置")};TextButton(onClick={sourceInfo=true}){Text("词库来源")};TextButton(onClick={model.undoReview();activeId=null},enabled=state.canUndo,modifier=Modifier.testTag("undo_review")){Text("撤销评分")}}
+            Text("${when(state.preferences.deck){"cet4"->"四级词";"highschool"->"高中衔接";else->"基础词"}} · 每日新词 ${state.preferences.dailyNew} 个",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
         }
         if(browsing && selectedId==null) {
             item { OutlinedTextField(search,{search=it},label={Text("搜索单词或释义")},leadingIcon={Icon(Icons.Outlined.Search,null)},modifier=Modifier.fillMaxWidth(),singleLine=true,shape=RoundedCornerShape(18.dp)) }
-            items(state.words.filter{it.word.contains(search,true)||it.meaning.contains(search)},key={it.id}) { entry ->
-                Surface(onClick={selectedId=entry.id;model.interact()},shape=RoundedCornerShape(18.dp),color=MaterialTheme.colorScheme.surfaceContainerLow,modifier=Modifier.fillMaxWidth()) {
+            item{Text("显示前 ${found.size} 条；可搜索英文、中文或词形。",style=MaterialTheme.typography.bodySmall)}
+            items(found,key={it.id}) { entry ->
+                Surface(onClick={model.openCard(entry.word,entry.example,"词库查词")},shape=RoundedCornerShape(18.dp),color=MaterialTheme.colorScheme.surfaceContainerLow,modifier=Modifier.fillMaxWidth()) {
                     Row(Modifier.padding(18.dp),verticalAlignment=Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)){Text(entry.word,style=MaterialTheme.typography.titleLarge);Text(entry.meaning,style=MaterialTheme.typography.bodyMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)}
-                        Text(if(state.progress[entry.id]?.isMastered==true)"已巩固" else if(state.progress.containsKey(entry.id))"学习中" else "新词",style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.primary)
+                        Text(if(state.overrides[entry.id]=="familiar")"已熟悉" else if(state.progress[entry.id]?.isMastered==true)"已巩固" else if(state.progress.containsKey(entry.id))"学习中" else "新词",style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.primary)
                     }
                 }
             }
@@ -62,11 +68,28 @@ import com.nuomisp.englishbook.data.*
             item(key=word.id) {
                 WordCard(word,model,onRated={rating->model.rate(word,rating){selectedId=null;activeId=null}},onNext={selectedId=null;activeId=null},ask={ask(word)})
             }
-            item { Text("先复习到期词，再学新词；每日新词上限 20 个。掌握情况来自多次复习，不靠一次点“认识”。",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant) }
+            item { TextButton(onClick={model.setWordStatus(word.id,"familiar");activeId=null}){Text("这个词已熟悉，暂不安排")};TextButton(onClick={model.openCard(word.word,word.example,"单词练习")}){Text("打开词卡 / 收藏")};Text("先复习到期词，再学新词；每日新词上限 ${state.preferences.dailyNew} 个。掌握情况来自多次复习，不靠一次点“认识”。",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant) }
         } else item {
             EmptyPanel("这一轮完成了。","别得意，记忆需要时间。稍后再来复习，也可以去读一篇短文。")
         }
     }
+    if(options)StudyOptionsDialog(state,{preferences->model.saveStudyPreferences(preferences);activeId=null;options=false},{options=false})
+    if(sourceInfo)AlertDialog(onDismissRequest={sourceInfo=false},title={Text("离线词库来源")},text={Column{
+        Text("ECDICT · MIT 许可\n基础词 ${state.words.count{"zk" in it.tags}}\n高中衔接 ${state.words.count{"gk" in it.tags}}\n四级标签 ${state.words.count{"cet4" in it.tags}}\n去重查词总数 ${state.words.size}\n版本 bc015ed2（来源版本标识）")
+        Spacer(Modifier.height(8.dp));Text("各阶段有重合，共用学习进度。标签来自开源词库，不等同于最新官方完整考纲；新词条不强行填充未经核实的例句。",style=MaterialTheme.typography.bodySmall)
+    }},confirmButton={TextButton(onClick={sourceInfo=false}){Text("知道了")}})
+}
+
+@Composable private fun StudyOptionsDialog(state:LearningUi,save:(StudyPreferences)->Unit,close:()->Unit) {
+    var deck by remember{mutableStateOf(state.preferences.deck)}
+    var number by remember{mutableStateOf(state.preferences.dailyNew.toString())}
+    AlertDialog(onDismissRequest=close,title={Text("安排新词学习")},text={Column{
+        listOf("foundation" to "基础词","highschool" to "高中衔接","cet4" to "四级词").forEach{(id,name)->
+            Row(Modifier.fillMaxWidth().clickable{deck=id},verticalAlignment=Alignment.CenterVertically){RadioButton(deck==id,{deck=id});Text(name)}
+        }
+        OutlinedTextField(number,{number=it.filter(Char::isDigit).take(3)},label={Text("每日新词数量（0—100）")},singleLine=true,modifier=Modifier.testTag("daily_new_input"))
+        Text("设为 0 时只复习。换阶段不会清除旧词进度，到期复习仍优先。",style=MaterialTheme.typography.bodySmall)
+    }},confirmButton={TextButton(onClick={save(StudyPreferences(deck,number.toInt()))},enabled=number.toIntOrNull()?.let{it in 0..100}==true){Text("保存")}},dismissButton={TextButton(onClick=close){Text("取消")}})
 }
 
 @Composable private fun WordCard(word:Word,model:StudyViewModel,onRated:(ReviewRating)->Unit,onNext:()->Unit,ask:()->Unit) {
@@ -99,10 +122,12 @@ import com.nuomisp.englishbook.data.*
             } else {
                 SelectionContainer { Column(Modifier.fillMaxWidth()) {
                     Text(word.meaning,style=MaterialTheme.typography.titleLarge)
-                    Spacer(Modifier.height(22.dp));Text(word.example,style=MaterialTheme.typography.bodyLarge)
-                    Spacer(Modifier.height(8.dp));Text(word.exampleZh,style=MaterialTheme.typography.bodyMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
+                    if(word.example.isNotBlank()){Spacer(Modifier.height(22.dp));Text(word.example,style=MaterialTheme.typography.bodyLarge)
+                    Spacer(Modifier.height(8.dp));Text(word.exampleZh,style=MaterialTheme.typography.bodyMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)}
+                    else {Spacer(Modifier.height(12.dp));Text("可让凛根据你的水平补充例句。",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)}
+                    Text("释义来源：${word.source}",style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
                 } }
-                Row(Modifier.fillMaxWidth()){TextButton(onClick={model.speak(word.example)}){Text("听例句")};TextButton(onClick=ask){Text("问问凛")}}
+                Row(Modifier.fillMaxWidth()){if(word.example.isNotBlank())TextButton(onClick={model.openCard(word.example,word.example,"单词例句")}){Text("例句朗读卡")};TextButton(onClick=ask){Text("问问凛")}}
                 Spacer(Modifier.height(12.dp))
                 if(result!=null) TextButton(onClick=onNext){Text("继续下一个")}
                 else Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
@@ -137,8 +162,9 @@ import com.nuomisp.englishbook.data.*
     LazyColumn(Modifier.fillMaxSize(),contentPadding=PaddingValues(24.dp),verticalArrangement=Arrangement.spacedBy(20.dp)) {
         item { TextButton(onClick=back){Icon(Icons.AutoMirrored.Outlined.ArrowBack,null);Text("返回文章")};Text(article.title,style=MaterialTheme.typography.headlineMedium);Text(article.level,color=MaterialTheme.colorScheme.primary) }
         items(article.paragraphs) { paragraph ->
-            Column { SelectionContainer { Text(paragraph,style=MaterialTheme.typography.bodyLarge.copy(fontSize=18.sp,lineHeight=31.sp)) }
-                Row {TextButton(onClick={model.speak(paragraph)}){Icon(Icons.Outlined.VolumeUp,null,Modifier.size(18.dp));Spacer(Modifier.width(5.dp));Text("听这一段")}
+            Column { EnglishRichText(paragraph,"阅读：${article.title}",model)
+                SentenceCardButtons(paragraph,"阅读：${article.title}",model)
+                Row {TextButton(onClick={model.openCard(paragraph,paragraph,"阅读：${article.title}")}){Icon(Icons.Outlined.VolumeUp,null,Modifier.size(18.dp));Spacer(Modifier.width(5.dp));Text("整段朗读卡")}
                     TextButton(onClick={ask("请讲解这段英文，挑出适合初中基础学习的单词和句子结构：\n$paragraph")}){Text("请凛讲解")}}
             }
         }
