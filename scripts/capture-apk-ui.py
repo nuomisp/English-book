@@ -76,6 +76,7 @@ try:
         tap('打开导航'); tap(destination); capture(name)
     tap('打开导航');tap('阅读小屋');tap('A Small Start · 从小开始')
     long_press_text('Lin wants to read English books')
+    capture('06-selection-menu')
     tap('词卡 / 朗读')
     assert '词卡' in ET.tostring(snapshot(),encoding='unicode') or '朗读卡' in ET.tostring(snapshot(),encoding='unicode')
     capture('07-selected-text-card')
@@ -91,4 +92,10 @@ try:
     capture('06-home-dark')
     print('Signed APK: native navigation and six unobscured screenshots verified.')
 finally:
+    try:
+        (out/'last-window.xml').write_text(ET.tostring(snapshot(),encoding='unicode'),encoding='utf-8')
+        with (out/'last-window.png').open('wb') as image:
+            subprocess.run(['adb','exec-out','screencap','-p'],stdout=image,check=True,timeout=30)
+    except Exception:
+        pass
     (out/'logcat.txt').write_text(adb('logcat','-d','-t','500'), encoding='utf-8')
