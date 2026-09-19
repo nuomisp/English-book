@@ -32,7 +32,8 @@ GitHub Actions 在开发分支运行单元测试、lint、debug APK、原生模�
 ## 验证状态
 
 - 服务器20项自动测试通过：认证、输入验证、静音时段、随机间隔、重启计划稳定、过期不补发、禁用与目标完成、幂等确认、并发唯一领取。
-- Android构建、单元测试、lint和API35模拟器截图正在执行，结果以对应Actions运行记录为准。
+- Android构建、15项单元测试、lint（0错误）和API35模拟器3项测试通过，覆盖原生页面操作、学习记录持久化、备份恢复与拒绝损坏备份、Keystore加密配置。签名APK已在模拟器安装并启动。[构建和测试记录](https://github.com/nuomisp/English-book/actions/runs/35437689328)
+- 模拟器系统桌面Quickstep曾弹出未响应提示遮挡截图；另设复用签名APK的原生输入与截图检查，不把被遮挡的截图视为视觉验收。[独立界面检查](https://github.com/nuomisp/English-book/actions/runs/35445280159)
 - 尚未连接用户实际中转站、魅族手机或服务器，不声称已完成这些真实环境测试。
 
 ## 后续工作
