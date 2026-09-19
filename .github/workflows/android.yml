@@ -11,6 +11,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   build:
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -80,6 +81,11 @@ jobs:
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
+      - uses: actions/download-artifact@v4
+        if: github.event_name != 'pull_request'
+        with:
+          name: EnglishBook-signed-apk
+          path: release-apk
       - uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 35
@@ -89,6 +95,7 @@ jobs:
           script: |
             chmod +x gradlew
             ./gradlew connectedDebugAndroidTest --stacktrace
+            if [ -f release-apk/app-release.apk ]; then adb install release-apk/app-release.apk; adb shell am start -W -n com.nuomisp.englishbook/.MainActivity; sleep 5; adb shell pidof com.nuomisp.englishbook; adb shell screencap -p /sdcard/Download/englishbook-screenshots/07-signed-home.png; adb shell cmd uimode night yes; adb shell am force-stop com.nuomisp.englishbook; adb shell am start -W -n com.nuomisp.englishbook/.MainActivity; sleep 5; adb shell pidof com.nuomisp.englishbook; adb shell screencap -p /sdcard/Download/englishbook-screenshots/08-signed-dark.png; fi
             adb pull /sdcard/Download/englishbook-screenshots screenshots
       - uses: actions/upload-artifact@v4
         if: always()

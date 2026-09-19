@@ -1,6 +1,5 @@
 package com.nuomisp.englishbook
 
-import android.app.UiModeManager
 import android.content.Context
 import android.graphics.Bitmap
 import androidx.compose.ui.test.*
@@ -33,7 +32,7 @@ class NativeFlowTest {
         android.os.ParcelFileDescriptor.AutoCloseInputStream(instrument.uiAutomation.executeShellCommand("mkdir -p /sdcard/Download/englishbook-screenshots")).use { it.readBytes() }
         android.os.ParcelFileDescriptor.AutoCloseInputStream(instrument.uiAutomation.executeShellCommand("cp ${File(directory,"$name.png").absolutePath} /sdcard/Download/englishbook-screenshots/$name.png")).use { it.readBytes() }
     }
-    @Test fun learnOneWord_andNavigateNativeScreens() {
+    @Test(timeout = 120_000) fun learnOneWord_andNavigateNativeScreens() {
         compose.waitUntil(20_000) { compose.onAllNodesWithText("今天，也要进步一点。").fetchSemanticsNodes().isNotEmpty() }
         capture("01-home")
         val context=InstrumentationRegistry.getInstrumentation().targetContext
@@ -58,10 +57,5 @@ class NativeFlowTest {
         page("progress")
         capture("06-progress")
         page("home")
-        compose.runOnUiThread {
-            context.getSystemService(UiModeManager::class.java).setApplicationNightMode(UiModeManager.MODE_NIGHT_YES)
-        }
-        compose.waitForIdle()
-        capture("07-home-dark")
     }
 }

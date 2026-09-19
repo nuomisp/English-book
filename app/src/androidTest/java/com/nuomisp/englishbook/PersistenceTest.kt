@@ -11,7 +11,7 @@ import org.junit.Test
 import java.io.File
 
 class PersistenceTest {
-    @Test fun learningBackupRoundTrips_andInvalidRestorePreservesData() {
+    @Test(timeout = 60_000) fun learningBackupRoundTrips_andInvalidRestorePreservesData() {
         val repository=LearningRepository.get(InstrumentationRegistry.getInstrumentation().targetContext)
         val initial=repository.exportBackup()
         try {
@@ -32,7 +32,7 @@ class PersistenceTest {
             assertEquals(expected,repository.progress(word.id))
         } finally { repository.importBackup(initial) }
     }
-    @Test fun settingsRoundTripThroughKeystore_withoutPlaintextInPreferencesOrBackup() {
+    @Test(timeout = 60_000) fun settingsRoundTripThroughKeystore_withoutPlaintextInPreferencesOrBackup() {
         val context=InstrumentationRegistry.getInstrumentation().targetContext
         val store=SecureSettingsStore(context)
         val initial=store.load()
