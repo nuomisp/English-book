@@ -1,0 +1,14 @@
+{
+  "name": "ECDICT 精选离线词库",
+  "revision": "bc015ed2e24a7abef49fc6dbbb7fe32c1dadaf8b",
+  "license": "MIT",
+  "url": "https://github.com/skywind3000/ECDICT",
+  "csvSha256": "1a6947e04785db63613a92e14903cdae7954f7e84860b10e68e5c7cbb3f9c3cf",
+  "total": 13806,
+  "foundation": 1613,
+  "highSchool": 3677,
+  "cet4": 3849,
+  "upstreamCet4Tagged": 3849,
+  "missingDefinitions": [],
+  "notes": "考试标签来自开源数据，未声称为当前官方完整考纲；例句仅保留原版100词的原创例句；音频按需生成。"
+}

@@ -1,0 +1,114 @@
+name: Android APK
+on:
+  push:
+    branches: [main, 'codex/**']
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  build:
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-36 build-tools;35.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Preserve development signing key between builds
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: development-signing-v1
+      - name: Build, unit tests and lint
+        run: |
+          chmod +x gradlew
+          ./gradlew testDebugUnitTest lintDebug assembleDebug --stacktrace
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: EnglishBook-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+      - name: Build signed APK
+        if: github.event_name != 'pull_request'
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
+            export ANDROID_SIGNING_FILE="$RUNNER_TEMP/englishbook-release.jks"
+            printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$ANDROID_SIGNING_FILE"
+            trap 'rm -f "$ANDROID_SIGNING_FILE"' EXIT
+            ./gradlew assembleRelease
+          fi
+      - name: Upload signed APK
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: EnglishBook-signed-apk
+          path: app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: warn
+      - name: Upload checks
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-checks
+          path: app/build/reports
+  device-test:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - uses: actions/download-artifact@v4
+        if: github.event_name != 'pull_request'
+        with:
+          name: EnglishBook-signed-apk
+          path: release-apk
+      - name: Fetch previous signed version for upgrade verification
+        if: github.event_name != 'pull_request'
+        run: |
+          curl -fL --retry 2 -o previous.apk https://github.com/nuomisp/English-book/releases/download/v0.1.0-preview/EnglishBook-0.1.0-preview.apk
+          echo '96102c1629d04d1da50ff209f928e71fdd56d72c8b0c9c1f5c4391be692987ae  previous.apk' | sha256sum -c -
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          profile: pixel_2
+          disable-animations: true
+          script: |
+            chmod +x gradlew
+            adb shell am force-stop com.android.launcher3
+            ./gradlew connectedDebugAndroidTest --stacktrace
+            if [ -f release-apk/app-release.apk ]; then python3 scripts/capture-apk-ui.py; fi
+            adb pull /sdcard/Download/englishbook-screenshots screenshots
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-ui-checks
+          path: |
+            screenshots
+            visual-check
+            app/build/reports/androidTests
+            app/build/outputs/androidTest-results
