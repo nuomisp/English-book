@@ -89,9 +89,7 @@ jobs:
           script: |
             chmod +x gradlew
             ./gradlew connectedDebugAndroidTest --stacktrace
-      - name: Collect screenshots
-        if: always()
-        run: adb pull /sdcard/Android/data/com.nuomisp.englishbook/files/screenshots screenshots || true
+            adb pull /sdcard/Download/englishbook-screenshots screenshots
       - uses: actions/upload-artifact@v4
         if: always()
         with:
