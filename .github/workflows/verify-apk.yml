@@ -1,0 +1,39 @@
+name: Signed APK visual verification
+on:
+  push:
+    paths: ['.github/workflows/verify-apk.yml', 'scripts/capture-apk-ui.py']
+    branches: ['codex/**']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  visual-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: EnglishBook-signed-apk
+          path: release-apk
+          run-id: 35437689328
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          profile: pixel_2
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -memory 2048
+          script: python3 scripts/capture-apk-ui.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: signed-apk-screenshots
+          path: visual-check
