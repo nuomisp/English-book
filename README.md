@@ -2,7 +2,7 @@
 
 一个原生 Android 英语学习应用：从初中基础衔接大学英语四级。Kotlin + Jetpack Compose，独立背词、阅读和听写页面；傲娇学习搭档「凛」使用用户自己配置的 OpenAI 兼容接口。
 
-**当前开发版本为 0.2.0，纯原生安卓界面，尚非完整四级题库。** 词库与词句卡说明见 [本次更新](docs/vocabulary-and-cards.md)。
+**当前版本为 0.2.0，纯原生安卓界面，尚非完整四级题库。** [下载签名APK](https://github.com/nuomisp/English-book/releases/tag/v0.2.0-preview)，可覆盖安装0.1.0保留学习记录。词库与词句卡说明见 [本次更新](docs/vocabulary-and-cards.md)。
 
 ## 当前实现
 
