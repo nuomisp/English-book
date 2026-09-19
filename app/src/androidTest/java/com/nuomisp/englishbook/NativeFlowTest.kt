@@ -30,12 +30,8 @@ class NativeFlowTest {
             bitmap.recycle()
         }
         // Keep captures outside app data so test-runner cleanup cannot remove them.
-        instrument.uiAutomation.executeShellCommand("mkdir -p /sdcard/Download/englishbook-screenshots").use { descriptor ->
-            java.io.FileInputStream(descriptor.fileDescriptor).use { it.readBytes() }
-        }
-        instrument.uiAutomation.executeShellCommand("cp ${File(directory,"$name.png").absolutePath} /sdcard/Download/englishbook-screenshots/$name.png").use { descriptor ->
-            java.io.FileInputStream(descriptor.fileDescriptor).use { it.readBytes() }
-        }
+        android.os.ParcelFileDescriptor.AutoCloseInputStream(instrument.uiAutomation.executeShellCommand("mkdir -p /sdcard/Download/englishbook-screenshots")).use { it.readBytes() }
+        android.os.ParcelFileDescriptor.AutoCloseInputStream(instrument.uiAutomation.executeShellCommand("cp ${File(directory,"$name.png").absolutePath} /sdcard/Download/englishbook-screenshots/$name.png")).use { it.readBytes() }
     }
     @Test fun learnOneWord_andNavigateNativeScreens() {
         compose.waitUntil(20_000) { compose.onAllNodesWithText("今天，也要进步一点。").fetchSemanticsNodes().isNotEmpty() }
