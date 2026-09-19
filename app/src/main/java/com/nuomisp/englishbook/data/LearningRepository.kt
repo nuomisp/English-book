@@ -97,10 +97,13 @@ class LearningRepository(context: Context) {
         "SELECT COUNT(*) FROM word_progress WHERE correct_streak >= 3 AND interval_days >= 21",
     )
 
-    fun weakWords(limit: Int = 8): List<Word> = allProgress()
-        .filter { it.lapses > 0 || it.lastRating == ReviewRating.HARD }
+    fun weakWords(limit: Int = 8): List<Word> {
+        val excluded=overrides().filterValues{it=="familiar"}.keys
+        return allProgress()
+        .filter { it.wordId !in excluded && (it.lapses > 0 || it.lastRating == ReviewRating.HARD) }
         .sortedWith(compareByDescending<WordProgress> { it.lapses }.thenBy { it.correctStreak })
         .take(limit.coerceIn(0, 100)).mapNotNull { catalogById[it.wordId] }
+    }
 
     @Synchronized
     fun rateWord(wordId: String, rating: ReviewRating) {
@@ -268,6 +271,7 @@ class LearningRepository(context: Context) {
             appendLine("本地学习记录（${stats.date}）：学习 ${stats.studyMinutes} 分钟；新词 ${stats.newWords} 个，复习 ${stats.reviewedWords} 个；阅读完成 ${stats.readingCompleted} 篇；听写 ${stats.listeningAttempts} 次，正确 ${stats.listeningCorrect} 次。")
             appendLine("累计接触 ${learnedCount()} 个词，达到复习稳定标准 ${masteredCount()} 个；当前到期复习 ${dueCount()} 个。")
             appendLine("学习设置：${preferences().deck}，每天最多 ${preferences().dailyNew} 个新词。收藏 ${savedCards().size} 张词句卡。用户自行标记熟悉 ${overrides().values.count{it=="familiar"}} 词（不等于测验掌握）。")
+            savedCards().take(5).takeIf{it.isNotEmpty()}?.let { cards->appendLine("最近收藏（仅收藏，不等于学会）："+cards.joinToString("；"){it.text.take(100)}) }
             val weak = weakWords()
             appendLine(if (weak.isEmpty()) "尚无足够易错词记录；不要编造学生的错误或进步。" else "需要关注的词：" + weak.joinToString("；") { "${it.word}（${it.meaning}）" })
             append("学习数据仅来自本应用；新词或复习计数不等于真正掌握，不能据此断言已达到四级水平。")

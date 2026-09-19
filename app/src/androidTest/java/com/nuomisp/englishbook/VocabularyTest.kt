@@ -33,6 +33,7 @@ class VocabularyTest {
             assertEquals(before,repository.dailyStats())
             repository.setWordStatus("learn","familiar")
             assertFalse(repository.studyQueue().any{it.id=="learn"})
+            assertFalse(repository.weakWords().any{it.id=="learn"})
             assertEquals(before,repository.dailyStats())
             val backup=repository.exportBackup()
             repository.removeCard(repository.savedCards().first{it.wordId=="learn"}.id)
