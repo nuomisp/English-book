@@ -39,6 +39,17 @@ def capture(name):
     with (out / f'{name}.png').open('wb') as image:
         subprocess.run(['adb','exec-out','screencap','-p'],stdout=image,check=True,timeout=30)
 
+def long_press_text(prefix):
+    for node in snapshot().iter('node'):
+        if node.get('text','').startswith(prefix):
+            bounds=[int(x) for x in re.findall(r'\d+',node.get('bounds',''))]
+            if len(bounds)==4:
+                x,y=str((bounds[0]+bounds[2])//2),str((bounds[1]+bounds[3])//2)
+                adb('shell','input','swipe',x,y,x,y,'1200')
+                time.sleep(1)
+                return
+    raise RuntimeError('Reading paragraph missing for native text selection')
+
 try:
     launcher = adb('shell','cmd','package','resolve-activity','--brief','-a','android.intent.action.MAIN','-c','android.intent.category.HOME').splitlines()[-1].split('/')[0]
     if launcher.startswith(('com.android.', 'com.google.')):
@@ -63,6 +74,15 @@ try:
     capture('02-word')
     for destination,name in [('阅读小屋','03-reading'),('听力与听写','04-listening'),('设置','05-settings')]:
         tap('打开导航'); tap(destination); capture(name)
+    tap('打开导航');tap('阅读小屋');tap('A Small Start · 从小开始')
+    long_press_text('Lin wants to read English books')
+    tap('词卡 / 朗读')
+    assert '词卡' in ET.tostring(snapshot(),encoding='unicode') or '朗读卡' in ET.tostring(snapshot(),encoding='unicode')
+    capture('07-selected-text-card')
+    adb('shell','input','keyevent','4');time.sleep(1)
+    tap('第 1 句');capture('08-sentence-card');tap('收藏句子 / 短语')
+    adb('shell','input','keyevent','4');time.sleep(1)
+    tap('打开导航');tap('生词本与收藏句');tap('收藏句子');capture('09-saved-sentences')
     tap('打开导航'); tap('凛 · 学习搭档')
     adb('shell','cmd','uimode','night','yes')
     adb('shell','am','force-stop','com.nuomisp.englishbook')
