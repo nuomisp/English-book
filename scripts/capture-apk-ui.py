@@ -77,8 +77,10 @@ try:
     tap('打开导航');tap('阅读小屋');tap('A Small Start · 从小开始')
     long_press_text('Lin wants to read English books')
     capture('06-selection-menu')
-    tap('词卡 / 朗读')
-    assert '词卡' in ET.tostring(snapshot(),encoding='unicode') or '朗读卡' in ET.tostring(snapshot(),encoding='unicode')
+    # Android's floating ActionMode is rendered but absent from uiautomator's active-window XML.
+    # Pixel 2 (1080x1920): verified selection-menu screenshot places its first action at (425,692).
+    adb('shell','input','tap','425','692');time.sleep(1)
+    assert any(n.get('text') in ('单词卡','英文朗读卡') for n in snapshot().iter('node')), 'Selection action did not open a card'
     capture('07-selected-text-card')
     adb('shell','input','keyevent','4');time.sleep(1)
     tap('第 1 句');capture('08-sentence-card');tap('收藏句子 / 短语')
