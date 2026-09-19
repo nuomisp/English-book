@@ -86,6 +86,11 @@ jobs:
         with:
           name: EnglishBook-signed-apk
           path: release-apk
+      - name: Fetch previous signed version for upgrade verification
+        if: github.event_name != 'pull_request'
+        run: |
+          curl -fL --retry 2 -o previous.apk https://github.com/nuomisp/English-book/releases/download/v0.1.0-preview/EnglishBook-0.1.0-preview.apk
+          echo '96102c1629d04d1da50ff209f928e71fdd56d72c8b0c9c1f5c4391be692987ae  previous.apk' | sha256sum -c -
       - uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 35

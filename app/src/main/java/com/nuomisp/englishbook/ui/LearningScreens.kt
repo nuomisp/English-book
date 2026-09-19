@@ -18,6 +18,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
@@ -27,6 +28,7 @@ import com.nuomisp.englishbook.StudyViewModel
 import com.nuomisp.englishbook.data.*
 
 @Composable fun WordsScreen(model: StudyViewModel, state: LearningUi, ask:(Word)->Unit) {
+    val uriHandler=LocalUriHandler.current
     var browsing by rememberSaveable { mutableStateOf(false) }
     var search by rememberSaveable { mutableStateOf("") }
     var selectedId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -34,6 +36,7 @@ import com.nuomisp.englishbook.data.*
     var sourceInfo by remember {mutableStateOf(false)}
     var activeId by rememberSaveable { mutableStateOf<String?>(null) }
     LaunchedEffect(state.queue,activeId,state.preferences) { if(activeId==null || state.overrides[activeId]=="familiar") activeId=state.queue.firstOrNull()?.id }
+    LaunchedEffect(state.preferences){activeId=state.queue.firstOrNull()?.id}
     val word = (selectedId ?: activeId)?.let { id->state.words.find{it.id==id} }
     val found=remember(search,state.words){(if(search.isBlank())state.words else (model.lookup(search)+state.words.filter{it.word.contains(search,true)||it.meaning.contains(search)}).distinctBy{it.id}).take(100)}
     LazyColumn(Modifier.fillMaxSize().testTag("words_screen"),contentPadding=PaddingValues(24.dp),verticalArrangement=Arrangement.spacedBy(20.dp)) {
@@ -49,7 +52,7 @@ import com.nuomisp.englishbook.data.*
                 FilterChip(selected=!browsing,onClick={browsing=false;selectedId=null},label={Text("今日练习")})
                 FilterChip(selected=browsing,onClick={browsing=true;selectedId=null},label={Text("词库 · ${state.words.size}")})
             }
-            Row {TextButton(onClick={options=true}){Text("学习设置")};TextButton(onClick={sourceInfo=true}){Text("词库来源")};TextButton(onClick={model.undoReview();activeId=null},enabled=state.canUndo,modifier=Modifier.testTag("undo_review")){Text("撤销评分")}}
+            Row {TextButton(onClick={options=true}){Text("学习设置")};TextButton(onClick={sourceInfo=true}){Text("词库来源")};TextButton(onClick={model.undoReview{activeId=null}},enabled=state.canUndo,modifier=Modifier.testTag("undo_review")){Text("撤销评分")}}
             Text("${when(state.preferences.deck){"cet4"->"四级词";"highschool"->"高中衔接";else->"基础词"}} · 每日新词 ${state.preferences.dailyNew} 个",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
         }
         if(browsing && selectedId==null) {
@@ -77,6 +80,7 @@ import com.nuomisp.englishbook.data.*
     if(sourceInfo)AlertDialog(onDismissRequest={sourceInfo=false},title={Text("离线词库来源")},text={Column{
         Text("ECDICT · MIT 许可\n基础词 ${state.words.count{"zk" in it.tags}}\n高中衔接 ${state.words.count{"gk" in it.tags}}\n四级标签 ${state.words.count{"cet4" in it.tags}}\n去重查词总数 ${state.words.size}\n版本 bc015ed2（来源版本标识）")
         Spacer(Modifier.height(8.dp));Text("各阶段有重合，共用学习进度。标签来自开源词库，不等同于最新官方完整考纲；新词条不强行填充未经核实的例句。",style=MaterialTheme.typography.bodySmall)
+        TextButton(onClick={uriHandler.openUri("https://github.com/skywind3000/ECDICT/tree/bc015ed2e24a7abef49fc6dbbb7fe32c1dadaf8b")}){Text("查看来源与许可")}
     }},confirmButton={TextButton(onClick={sourceInfo=false}){Text("知道了")}})
 }
 

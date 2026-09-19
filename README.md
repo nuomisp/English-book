@@ -2,12 +2,13 @@
 
 一个原生 Android 英语学习应用：从初中基础衔接大学英语四级。Kotlin + Jetpack Compose，独立背词、阅读和听写页面；傲娇学习搭档「凛」使用用户自己配置的 OpenAI 兼容接口。
 
-**这是 0.1.0 验证版，不是 WebView 套壳，也不是完整四级题库。**
+**当前开发版本为 0.2.0，纯原生安卓界面，尚非完整四级题库。** 词库与词句卡说明见 [本次更新](docs/vocabulary-and-cards.md)。
 
 ## 当前实现
 
 - 原生对话首页、抽屉导航、独立学习页面、系统深浅主题、原创矢量角色头像。
-- 100 个起步词、3 篇原创分级阅读、40 个例句听写；真实答题、SQLite 持久化和间隔复习。每日最多安排 20 个新词，到期词优先。
+- 13,806个去重离线词条，含基础1,613、高中衔接3,677、四级标签3,849（重合词共用进度）；3篇原创阅读、40句听写保留。每日新词可设0—100，默认20，到期复习优先。
+- 点英文打开词卡、选择短语查询、句子朗读卡、生词与句子收藏；支持显式词形查询、标记熟悉与撤销上次评分。查词和收藏不虚增学习成绩。
 - 120 分钟学习目标，前期词汇 70 分钟。只计算前台练习页且最近 90 秒内有互动的时间。
 - 自填 HTTPS 基础地址、密钥、聊天模型，可选教学与记忆模型；限定上下文长度，结合真实学习统计与可编辑记忆。
 - 系统英语 TTS 和兼容 OpenAI `/audio/speech` 的 MP3 语音 API，音频缓存约 64 MiB 上限。
@@ -19,7 +20,7 @@
 
 - MOSS-TTS-Nano **尚未集成**。目前不要下载模型，使用系统 TTS 或语音 API。魅族 21 / Android 16 上的 MOSS 速度、内存和发热还需单独实验。
 - 服务器尚未部署，缺少实际 SSH/域名配置。不是魅族厂商推送，强行停止应用后无法保证通知；后台和 21:30 时间可能受省电策略延迟。
-- 内置内容为原创教学样例，不含历年四级试卷、听力原录音或完整四级词库。未提供发音评分或语音识别。
+- 阅读与听写仍为原创教学样例，不含历年四级试卷或听力原录音。词库考试标签来自ECDICT，未声称等同最新官方完整考纲。未提供发音评分或语音识别。
 - 已配置固定私有签名，但当前仍是早期验证版；系统英语语音包是否可用取决于设备。
 
 ## 下载 / 构建 APK
@@ -53,5 +54,6 @@
 - 架构参考 Android 官方 [Compose](https://developer.android.com/develop/ui/compose)、[WorkManager](https://developer.android.com/topic/libraries/architecture/workmanager) 文档；调研了 [GPT Mobile](https://github.com/egorpariy/gpt-mobile) 的原生多接口思路，没有复制其源码。
 - MOSS 后续评估参考 [OpenMOSS/MOSS-TTS-Nano](https://github.com/OpenMOSS/MOSS-TTS-Nano)。
 - Gradle Wrapper 来自 Gradle 官方 v8.13.0，Apache-2.0；AndroidX / Material 为 Apache-2.0，OkHttp 为 Apache-2.0，Kotlin / kotlinx.coroutines 为 Apache-2.0。项目自有代码按仓库 MIT 许可。
+- 离线词库来自 [ECDICT](https://github.com/skywind3000/ECDICT)，固定版本及数据校验值见 [词库说明](docs/vocabulary-and-cards.md)，[MIT许可副本](app/src/main/assets/licenses/ECDICT-MIT.txt)随APK分发。
 
 详见 [设计与验证记录](docs/implementation.md)。

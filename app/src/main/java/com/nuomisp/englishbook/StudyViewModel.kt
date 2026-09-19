@@ -65,13 +65,17 @@ class StudyViewModel(application: Application) : AndroidViewModel(application) {
     fun dictionaryInfo()=repository.dictionaryInfo()
     fun saveStudyPreferences(value:StudyPreferences) {work{repository.savePreferences(value)};interact()}
     fun setWordStatus(wordId:String,status:String){work{repository.setWordStatus(wordId,status)};interact()}
-    fun undoReview(){work{message.value=if(repository.undoReview())"已撤销上一次评分" else "当前没有可撤销的评分"}}
+    fun undoReview(done:()->Unit={}){viewModelScope.launch{
+        val undone=withContext(Dispatchers.IO){repository.undoReview()}
+        refresh();done();message.value=if(undone)"已撤销上一次评分" else "当前没有可撤销的评分"
+    }}
     fun saveCard(kind:String,text:String,wordId:String,context:String,source:String){work{
         repository.saveCard(kind,text,wordId,context,source);message.value="已收藏；收藏不会自动算作学会。"
     }}
     fun removeCard(id:String){work{repository.removeCard(id)}}
     fun openCard(text:String,context:String="",source:String="查词") {
         if(text.isBlank())return
+        if(EnglishText.words(text).isEmpty()){message.value="请选择英文单词或句子";return}
         stopSpeech();cardJob?.cancel();val token=++cardEpoch
         val request=CardRequest(text.trim().take(3000),context.take(3000),source.take(200))
         card.value=CardUi(request)
@@ -230,12 +234,14 @@ class StudyViewModel(application: Application) : AndroidViewModel(application) {
         message.value="学习记录已恢复。"
     } }
     fun speak(text: String) {
+        val english=EnglishText.spoken(text)
+        if(english.isBlank()){message.value="没有可朗读的英文";return}
         interact(); speechJob?.cancel()
         val token=++speechEpoch
         speechUi.value=SpeechUi(text,"loading")
         speechJob = viewModelScope.launch {
             try {
-                speech.speak(text){if(token==speechEpoch)speechUi.value=SpeechUi(text,"playing")}
+                speech.speak(english){if(token==speechEpoch)speechUi.value=SpeechUi(text,"playing")}
                 if(token==speechEpoch)speechUi.value=SpeechUi(text)
             }
             catch(e:TimeoutCancellationException){if(token==speechEpoch)speechUi.value=SpeechUi(text,error="语音请求或播放超时，请重试。")}

@@ -55,4 +55,5 @@ object EnglishText {
             }.filter { it.text.any(Char::isLetter) && it.text.length>1 }.toList()
     }
     fun contextAt(text:String,offset:Int)=sentences(text).find { offset in it.start until it.end }?.text ?: text.take(1500)
+    fun spoken(text:String)=sentences(text).joinToString(" "){it.text}.ifBlank{words(text).joinToString(" "){it.text}}
 }

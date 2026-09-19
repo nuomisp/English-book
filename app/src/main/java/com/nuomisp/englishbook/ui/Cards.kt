@@ -8,6 +8,7 @@ import android.view.View
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.ClickableText
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -67,9 +68,10 @@ private class CardSelectionToolbar(private val view:View,private val clipboard:C
         if(selected.isNotBlank() && text.contains(selected))model.openCard(selected,text,source)
     }}
     DisposableEffect(toolbar){onDispose{toolbar.hide()}}
+    val linkColor=MaterialTheme.colorScheme.primary
     val annotated=buildAnnotatedString {
         append(text)
-        spans.forEach { span->addStyle(SpanStyle(color=MaterialTheme.colorScheme.primary),span.start,span.end) }
+        spans.forEach { span->addStyle(SpanStyle(color=linkColor),span.start,span.end) }
     }
     CompositionLocalProvider(LocalTextToolbar provides toolbar) {
         SelectionContainer {
@@ -100,8 +102,10 @@ private class CardSelectionToolbar(private val view:View,private val clipboard:C
     val card=value ?: return
     val word=card.entries.find{it.id==card.selectedId}
     val text=word?.word ?: card.request.text
+    val listState=rememberLazyListState()
+    LaunchedEffect(card.request){listState.scrollToItem(0)}
     ModalBottomSheet(onDismissRequest=model::closeCard,sheetState=rememberModalBottomSheetState(skipPartiallyExpanded=true)) {
-        LazyColumn(Modifier.fillMaxWidth().heightIn(max=650.dp).testTag("study_card"),contentPadding=PaddingValues(start=24.dp,end=24.dp,bottom=32.dp),verticalArrangement=Arrangement.spacedBy(14.dp)) {
+        LazyColumn(Modifier.fillMaxWidth().heightIn(max=650.dp).testTag("study_card"),state=listState,contentPadding=PaddingValues(start=24.dp,end=24.dp,bottom=32.dp),verticalArrangement=Arrangement.spacedBy(14.dp)) {
             item {
                 Text(if(word!=null)"单词卡" else "英文朗读卡",color=MaterialTheme.colorScheme.primary,style=MaterialTheme.typography.labelLarge)
                 Spacer(Modifier.height(12.dp));SelectionContainer{Text(text,style=MaterialTheme.typography.headlineMedium)}

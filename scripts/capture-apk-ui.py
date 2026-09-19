@@ -16,14 +16,16 @@ def snapshot():
     return ET.fromstring(adb('shell', 'cat', '/sdcard/englishbook-window.xml'))
 
 def tap(label):
-    root = snapshot()
-    for node in root.iter('node'):
-        if label in (node.get('text'), node.get('content-desc')):
-            bounds = [int(x) for x in re.findall(r'\d+', node.get('bounds', ''))]
-            if len(bounds) == 4:
-                adb('shell', 'input', 'tap', str((bounds[0]+bounds[2])//2), str((bounds[1]+bounds[3])//2))
-                time.sleep(1)
-                return
+    for attempt in range(4):
+        root = snapshot()
+        for node in root.iter('node'):
+            if label in (node.get('text'), node.get('content-desc')):
+                bounds = [int(x) for x in re.findall(r'\d+', node.get('bounds', ''))]
+                if len(bounds) == 4 and bounds[2]>bounds[0] and bounds[3]>bounds[1]:
+                    adb('shell', 'input', 'tap', str((bounds[0]+bounds[2])//2), str((bounds[1]+bounds[3])//2))
+                    time.sleep(1)
+                    return
+        adb('shell','input','swipe','300','1400','300','500','350')
     raise RuntimeError(f'Visible native control not found: {label}')
 
 def capture(name):
@@ -38,15 +40,25 @@ def capture(name):
         subprocess.run(['adb','exec-out','screencap','-p'],stdout=image,check=True,timeout=30)
 
 try:
-    adb('install', 'release-apk/app-release.apk')
     launcher = adb('shell','cmd','package','resolve-activity','--brief','-a','android.intent.action.MAIN','-c','android.intent.category.HOME').splitlines()[-1].split('/')[0]
     if launcher.startswith(('com.android.', 'com.google.')):
         adb('shell','am','force-stop',launcher)
+    if pathlib.Path('previous.apk').exists():
+        adb('install','previous.apk')
+        adb('shell','am','start','-W','-n','com.nuomisp.englishbook/.MainActivity')
+        time.sleep(4)
+        tap('打开导航');tap('单词练习');tap('揭晓释义');tap('认识')
+        tap('打开导航');tap('凛 · 学习搭档')
+        assert '新词 1' in ET.tostring(snapshot(),encoding='unicode'),'Old APK did not save progress'
+        capture('00-before-upgrade')
+    adb('install', '-r', 'release-apk/app-release.apk')
+    adb('shell','am','force-stop','com.nuomisp.englishbook')
     adb('shell','am','start','-W','-n','com.nuomisp.englishbook/.MainActivity')
     time.sleep(4)
+    if pathlib.Path('previous.apk').exists():
+        assert '新词 1' in ET.tostring(snapshot(),encoding='unicode'),'Upgrade lost existing progress'
     capture('01-home')
     tap('打开导航'); tap('单词练习')
-    adb('shell','input','swipe','500','1500','500','550','400')
     tap('揭晓释义')
     capture('02-word')
     for destination,name in [('阅读小屋','03-reading'),('听力与听写','04-listening'),('设置','05-settings')]:

@@ -62,7 +62,7 @@ class NativeFlowTest {
         compose.waitUntil(10_000){compose.onAllNodesWithTag("assistant_text_${record.id}").fetchSemanticsNodes().isNotEmpty()}
         compose.onNodeWithTag("assistant_text_${record.id}").performScrollTo().performClick()
         compose.waitUntil(10_000){compose.onAllNodesWithTag("study_card").fetchSemanticsNodes().isNotEmpty()}
-        compose.onNodeWithText("单词卡").assertExists()
+        compose.waitUntil(10_000){compose.onAllNodesWithText("单词卡").fetchSemanticsNodes().isNotEmpty()}
         capture("07-word-card")
         compose.onNodeWithTag("card_save").performScrollTo().performClick()
         compose.waitUntil(10_000){repository.savedCards().any{it.wordId=="study"}}
